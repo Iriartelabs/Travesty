@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+
+{% block title %}Análisis Temporal - Analizador de Trading DAS{% endblock %}
+
+{% block header %}Análisis Temporal{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Insights -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Insights Temporales</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Mejor Hora</h5>
+                                {% if best_hour %}
+                                <h2 class="display-4">{{ best_hour.hour }}:00</h2>
+                                <p class="card-text">
+                                    P&L: ${{ best_hour.totalPL|format_number }}<br>
+                                    Operaciones: {{ best_hour.totalTrades }}<br>
+                                    Win Rate: {{ best_hour.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-danger text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Peor Hora</h5>
+                                {% if worst_hour %}
+                                <h2 class="display-4">{{ worst_hour.hour }}:00</h2>
+                                <p class="card-text">
+                                    P&L: ${{ worst_hour.totalPL|format_number }}<br>
+                                    Operaciones: {{ worst_hour.totalTrades }}<br>
+                                    Win Rate: {{ worst_hour.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Hora Más Activa</h5>
+                                {% if most_active %}
+                                <h2 class="display-4">{{ most_active.hour }}:00</h2>
+                                <p class="card-text">
+                                    Operaciones: {{ most_active.totalTrades }}<br>
+                                    P&L: ${{ most_active.totalPL|format_number }}<br>
+                                    Win Rate: {{ most_active.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Tabla de rendimiento por hora -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Hora</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="timeTable">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for hour in time_data %}
+                            <tr>
+                                <td>{{ hour.hour }}:00</td>
+                                <td class="text-end {% if hour.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ hour.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ hour.totalTrades }}</td>
+                                <td class="text-end">{{ hour.winRate|format_percent }}</td>
+                                <td class="text-end {% if hour.totalPL / hour.totalTrades >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ (hour.totalPL / hour.totalTrades)|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por hora -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Hora</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por hora -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Hora</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por hora -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Hora</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones temporales</h5>
+                    <p>Basado en el análisis de tus operaciones por hora del día, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_hour %}
+                        <li><strong>Mejor momento para operar:</strong> Tu mejor rendimiento es a las {{ best_hour.hour }}:00 con un P&L de ${{ best_hour.totalPL|format_number }} y un win rate del {{ best_hour.winRate|format_percent }}. Considera concentrar más operaciones en este horario.</li>
+                        {% endif %}
+                        
+                        {% if worst_hour %}
+                        <li><strong>Horario a evitar:</strong> A las {{ worst_hour.hour }}:00 has tenido tu peor desempeño con un P&L de ${{ worst_hour.totalPL|format_number }}. Considera reducir o evitar operar en esta franja.</li>
+                        {% endif %}
+                        
+                        {% if most_active %}
+                        <li><strong>Horario más activo:</strong> Realizas más operaciones a las {{ most_active.hour }}:00 ({{ most_active.totalTrades }} operaciones). {% if most_active.totalPL < 0 %}Sin embargo, tu P&L en este horario es negativo (${{ most_active.totalPL|format_number }}). Considera revisar tu estrategia en este horario o reducir el tamaño de posición.{% else %}Este horario te ha generado un P&L de ${{ most_active.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Datos para los gráficos
+    const timeData = {{ time_json|safe }};
+    
+    // Formato para las horas
+    const formatHour = (hour) => `${hour}:00`;
+    
+    // Gráfico P&L por hora
+    const plTimeCtx = document.getElementById('plTimeChart').getContext('2d');
+    new Chart(plTimeCtx, {
+        type: 'bar',
+        data: {
+            labels: timeData.map(item => formatHour(item.hour)),
+            datasets: [{
+                label: 'P&L ($)',
+                data: timeData.map(item => item.totalPL),
+                backgroundColor: timeData.map(item => item.totalPL >= 0 ? 'rgba(28, 200, 138, 0.8)' : 'rgba(231, 74, 59, 0.8)'),
+                borderColor: timeData.map(item => item.totalPL >= 0 ? 'rgb(28, 200, 138)' : 'rgb(231, 74, 59)'),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = timeData[context.dataIndex];
+                            return [
+                                'P&L: $' + item.totalPL.toFixed(2),
+                                'Operaciones: ' + item.totalTrades,
+                                'Win Rate: ' + item.winRate.toFixed(2) + '%'
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de operaciones por hora
+    const tradesTimeCtx = document.getElementById('tradesTimeChart').getContext('2d');
+    new Chart(tradesTimeCtx, {
+        type: 'bar',
+        data: {
+            labels: timeData.map(item => formatHour(item.hour)),
+            datasets: [{
+                label: 'Operaciones',
+                data: timeData.map(item => item.totalTrades),
+                backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                borderColor: 'rgb(54, 185, 204)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = timeData[context.dataIndex];
+                            return [
+                                'Operaciones: ' + item.totalTrades,
+                                'P&L: $' + item.totalPL.toFixed(2)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico Win Rate por hora
+    const winRateTimeCtx = document.getElementById('winRateTimeChart').getContext('2d');
+    new Chart(winRateTimeCtx, {
+        type: 'line',
+        data: {
+            labels: timeData.map(item => formatHour(item.hour)),
+            datasets: [{
+                label: 'Win Rate (%)',
+                data: timeData.map(item => item.winRate),
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                borderColor: 'rgb(78, 115, 223)',
+                pointBackgroundColor: 'rgb(78, 115, 223)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(78, 115, 223)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = timeData[context.dataIndex];
+                            return [
+                                'Win Rate: ' + item.winRate.toFixed(2) + '%',
+                                'Operaciones: ' + item.totalTrades,
+                                'P&L: $' + item.totalPL.toFixed(2)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

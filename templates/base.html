@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Analizador de Trading DAS{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h3 class="text-white">DAS Trader Analyzer</h3>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link text-white {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="fas fa-home mr-2"></i> Inicio
+                            </a>
+                        </li>
+                        
+                        {% if processed_data is defined and processed_data %}
+                            <li class="nav-item">
+                                <a class="nav-link text-white {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link text-white {% if request.path == url_for('symbols') %}active{% endif %}" href="{{ url_for('symbols') }}">
+                                    <i class="fas fa-chart-line mr-2"></i> Análisis por Símbolo
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link text-white {% if request.path == url_for('time_analysis') %}active{% endif %}" href="{{ url_for('time_analysis') }}">
+                                    <i class="fas fa-clock mr-2"></i> Análisis Temporal
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link text-white {% if request.path == url_for('buysell') %}active{% endif %}" href="{{ url_for('buysell') }}">
+                                    <i class="fas fa-exchange-alt mr-2"></i> Compras/Ventas
+                                </a>
+                            </li>
+                            
+                            <li class="nav-item">
+                                <a class="nav-link text-white {% if request.path == url_for('trades') %}active{% endif %}" href="{{ url_for('trades') }}">
+                                    <i class="fas fa-list mr-2"></i> Listado de Operaciones
+                                </a>
+                            </li>
+                            
+                            <!-- Separador para addons -->
+                            {% if sidebar_items is defined and sidebar_items %}
+                                <li class="nav-item">
+                                    <hr class="bg-secondary my-3">
+                                    <h6 class="text-muted px-3 py-1 mt-2">Addons</h6>
+                                </li>
+                                
+                                {% for item in sidebar_items %}
+                                <li class="nav-item">
+                                    <a class="nav-link text-white {% if request.path == item.route %}active{% endif %}" href="{{ item.route }}">
+                                        <i class="fas fa-{{ item.icon }} mr-2"></i> {{ item.name }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                        
+                        <!-- Gestión de addons -->
+                        <li class="nav-item mt-4">
+                            <hr class="bg-secondary">
+                            <a class="nav-link text-white {% if request.path == url_for('manage_addons') %}active{% endif %}" href="{{ url_for('manage_addons') }}">
+                                <i class="fas fa-plug mr-2"></i> Gestionar Addons
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Contenido principal -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">{% block header %}Analizador de Trading DAS{% endblock %}</h1>
+                </div>
+
+                <!-- Mensajes flash -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

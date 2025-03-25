@@ -1,0 +1,793 @@
+{% extends 'base.html' %}
+
+{% block title %}Análisis por Día de la Semana - DAS Trader Analyzer{% endblock %}
+
+{% block header %}Análisis por Día de la Semana{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Insights -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Insights por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Mejor Día</h5>
+                                {% if best_day %}
+                                <h2 class="display-4">{{ best_day.weekday }}</h2>
+                                <p class="card-text">
+                                    P&L: ${{ best_day.totalPL|format_number }}<br>
+                                    Operaciones: {{ best_day.totalTrades }}<br>
+                                    Win Rate: {{ best_day.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-danger text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Peor Día</h5>
+                                {% if worst_day %}
+                                <h2 class="display-4">{{ worst_day.weekday }}</h2>
+                                <p class="card-text">
+                                    P&L: ${{ worst_day.totalPL|format_number }}<br>
+                                    Operaciones: {{ worst_day.totalTrades }}<br>
+                                    Win Rate: {{ worst_day.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Día Más Activo</h5>
+                                {% if most_active_day %}
+                                <h2 class="display-4">{{ most_active_day.weekday }}</h2>
+                                <p class="card-text">
+                                    Operaciones: {{ most_active_day.totalTrades }}<br>
+                                    P&L: ${{ most_active_day.totalPL|format_number }}<br>
+                                    Win Rate: {{ most_active_day.winRate|format_percent }}
+                                </p>
+                                {% else %}
+                                <p class="card-text">No hay datos suficientes</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Datos para los gráficos
+    const weekdayData = {{ weekday_json|safe }};
+    
+    // Gráfico P&L por día
+    const plWeekdayCtx = document.getElementById('plWeekdayChart').getContext('2d');
+    new Chart(plWeekdayCtx, {
+        type: 'bar',
+        data: {
+            labels: weekdayData.map(item => item.weekday),
+            datasets: [{
+                label: 'P&L ($)',
+                data: weekdayData.map(item => item.totalPL),
+                backgroundColor: weekdayData.map(item => item.totalPL >= 0 ? 'rgba(28, 200, 138, 0.8)' : 'rgba(231, 74, 59, 0.8)'),
+                borderColor: weekdayData.map(item => item.totalPL >= 0 ? 'rgb(28, 200, 138)' : 'rgb(231, 74, 59)'),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return '
+
+<div class="row">
+    <!-- Tabla de rendimiento por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="weekdayTable">
+                        <thead>
+                            <tr>
+                                <th>Día</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekday_data %}
+                            <tr>
+                                <td>{{ day.weekday }}</td>
+                                <td class="text-end {% if day.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ day.totalTrades }}</td>
+                                <td class="text-end">{{ day.winRate|format_percent }}</td>
+                                <td class="text-end {% if day.avgPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.avgPL|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones por día de la semana</h5>
+                    <p>Basado en el análisis de tus operaciones por día de la semana, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_day %}
+                        <li><strong>Mejor día para operar:</strong> Tu mejor rendimiento es el {{ best_day.weekday }} con un P&L de ${{ best_day.totalPL|format_number }} y un win rate del {{ best_day.winRate|format_percent }}. Considera concentrar más operaciones en este día.</li>
+                        {% endif %}
+                        
+                        {% if worst_day %}
+                        <li><strong>Día a evitar:</strong> El {{ worst_day.weekday }} has tenido tu peor desempeño con un P&L de ${{ worst_day.totalPL|format_number }}. Considera reducir o evitar operar en este día si es posible.</li>
+                        {% endif %}
+                        
+                        {% if most_active_day %}
+                        <li><strong>Día más activo:</strong> Realizas más operaciones el {{ most_active_day.weekday }} ({{ most_active_day.totalTrades }} operaciones). {% if most_active_day.totalPL < 0 %}Sin embargo, tu P&L en este día es negativo (${{ most_active_day.totalPL|format_number }}). Considera revisar tu estrategia en este día o reducir el tamaño de posición.{% else %}Este día te ha generado un P&L de ${{ most_active_day.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div> + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = weekdayData[context.dataIndex];
+                            return [
+                                'P&L: 
+
+<div class="row">
+    <!-- Tabla de rendimiento por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="weekdayTable">
+                        <thead>
+                            <tr>
+                                <th>Día</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekday_data %}
+                            <tr>
+                                <td>{{ day.weekday }}</td>
+                                <td class="text-end {% if day.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ day.totalTrades }}</td>
+                                <td class="text-end">{{ day.winRate|format_percent }}</td>
+                                <td class="text-end {% if day.avgPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.avgPL|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones por día de la semana</h5>
+                    <p>Basado en el análisis de tus operaciones por día de la semana, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_day %}
+                        <li><strong>Mejor día para operar:</strong> Tu mejor rendimiento es el {{ best_day.weekday }} con un P&L de ${{ best_day.totalPL|format_number }} y un win rate del {{ best_day.winRate|format_percent }}. Considera concentrar más operaciones en este día.</li>
+                        {% endif %}
+                        
+                        {% if worst_day %}
+                        <li><strong>Día a evitar:</strong> El {{ worst_day.weekday }} has tenido tu peor desempeño con un P&L de ${{ worst_day.totalPL|format_number }}. Considera reducir o evitar operar en este día si es posible.</li>
+                        {% endif %}
+                        
+                        {% if most_active_day %}
+                        <li><strong>Día más activo:</strong> Realizas más operaciones el {{ most_active_day.weekday }} ({{ most_active_day.totalTrades }} operaciones). {% if most_active_day.totalPL < 0 %}Sin embargo, tu P&L en este día es negativo (${{ most_active_day.totalPL|format_number }}). Considera revisar tu estrategia en este día o reducir el tamaño de posición.{% else %}Este día te ha generado un P&L de ${{ most_active_day.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div> + item.totalPL.toFixed(2),
+                                'Operaciones: ' + item.totalTrades,
+                                'Win Rate: ' + item.winRate.toFixed(2) + '%'
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de operaciones por día
+    const tradesWeekdayCtx = document.getElementById('tradesWeekdayChart').getContext('2d');
+    new Chart(tradesWeekdayCtx, {
+        type: 'bar',
+        data: {
+            labels: weekdayData.map(item => item.weekday),
+            datasets: [{
+                label: 'Operaciones',
+                data: weekdayData.map(item => item.totalTrades),
+                backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                borderColor: 'rgb(54, 185, 204)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = weekdayData[context.dataIndex];
+                            return [
+                                'Operaciones: ' + item.totalTrades,
+                                'P&L: 
+
+<div class="row">
+    <!-- Tabla de rendimiento por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="weekdayTable">
+                        <thead>
+                            <tr>
+                                <th>Día</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekday_data %}
+                            <tr>
+                                <td>{{ day.weekday }}</td>
+                                <td class="text-end {% if day.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ day.totalTrades }}</td>
+                                <td class="text-end">{{ day.winRate|format_percent }}</td>
+                                <td class="text-end {% if day.avgPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.avgPL|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones por día de la semana</h5>
+                    <p>Basado en el análisis de tus operaciones por día de la semana, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_day %}
+                        <li><strong>Mejor día para operar:</strong> Tu mejor rendimiento es el {{ best_day.weekday }} con un P&L de ${{ best_day.totalPL|format_number }} y un win rate del {{ best_day.winRate|format_percent }}. Considera concentrar más operaciones en este día.</li>
+                        {% endif %}
+                        
+                        {% if worst_day %}
+                        <li><strong>Día a evitar:</strong> El {{ worst_day.weekday }} has tenido tu peor desempeño con un P&L de ${{ worst_day.totalPL|format_number }}. Considera reducir o evitar operar en este día si es posible.</li>
+                        {% endif %}
+                        
+                        {% if most_active_day %}
+                        <li><strong>Día más activo:</strong> Realizas más operaciones el {{ most_active_day.weekday }} ({{ most_active_day.totalTrades }} operaciones). {% if most_active_day.totalPL < 0 %}Sin embargo, tu P&L en este día es negativo (${{ most_active_day.totalPL|format_number }}). Considera revisar tu estrategia en este día o reducir el tamaño de posición.{% else %}Este día te ha generado un P&L de ${{ most_active_day.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div> + item.totalPL.toFixed(2)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico Win Rate por día
+    const winRateWeekdayCtx = document.getElementById('winRateWeekdayChart').getContext('2d');
+    new Chart(winRateWeekdayCtx, {
+        type: 'line',
+        data: {
+            labels: weekdayData.map(item => item.weekday),
+            datasets: [{
+                label: 'Win Rate (%)',
+                data: weekdayData.map(item => item.winRate),
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                borderColor: 'rgb(78, 115, 223)',
+                pointBackgroundColor: 'rgb(78, 115, 223)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(78, 115, 223)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = weekdayData[context.dataIndex];
+                            return [
+                                'Win Rate: ' + item.winRate.toFixed(2) + '%',
+                                'Operaciones: ' + item.totalTrades,
+                                'P&L: 
+
+<div class="row">
+    <!-- Tabla de rendimiento por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="weekdayTable">
+                        <thead>
+                            <tr>
+                                <th>Día</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekday_data %}
+                            <tr>
+                                <td>{{ day.weekday }}</td>
+                                <td class="text-end {% if day.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ day.totalTrades }}</td>
+                                <td class="text-end">{{ day.winRate|format_percent }}</td>
+                                <td class="text-end {% if day.avgPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.avgPL|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones por día de la semana</h5>
+                    <p>Basado en el análisis de tus operaciones por día de la semana, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_day %}
+                        <li><strong>Mejor día para operar:</strong> Tu mejor rendimiento es el {{ best_day.weekday }} con un P&L de ${{ best_day.totalPL|format_number }} y un win rate del {{ best_day.winRate|format_percent }}. Considera concentrar más operaciones en este día.</li>
+                        {% endif %}
+                        
+                        {% if worst_day %}
+                        <li><strong>Día a evitar:</strong> El {{ worst_day.weekday }} has tenido tu peor desempeño con un P&L de ${{ worst_day.totalPL|format_number }}. Considera reducir o evitar operar en este día si es posible.</li>
+                        {% endif %}
+                        
+                        {% if most_active_day %}
+                        <li><strong>Día más activo:</strong> Realizas más operaciones el {{ most_active_day.weekday }} ({{ most_active_day.totalTrades }} operaciones). {% if most_active_day.totalPL < 0 %}Sin embargo, tu P&L en este día es negativo (${{ most_active_day.totalPL|format_number }}). Considera revisar tu estrategia en este día o reducir el tamaño de posición.{% else %}Este día te ha generado un P&L de ${{ most_active_day.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div> + item.totalPL.toFixed(2)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+<div class="row">
+    <!-- Tabla de rendimiento por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="weekdayTable">
+                        <thead>
+                            <tr>
+                                <th>Día</th>
+                                <th class="text-end">P&L</th>
+                                <th class="text-end">Operaciones</th>
+                                <th class="text-end">Win Rate</th>
+                                <th class="text-end">P&L por Operación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in weekday_data %}
+                            <tr>
+                                <td>{{ day.weekday }}</td>
+                                <td class="text-end {% if day.totalPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.totalPL|format_number }}
+                                </td>
+                                <td class="text-end">{{ day.totalTrades }}</td>
+                                <td class="text-end">{{ day.winRate|format_percent }}</td>
+                                <td class="text-end {% if day.avgPL >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ day.avgPL|format_number }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico P&L por día -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">P&L por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de operaciones por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Operaciones por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="tradesWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Win Rate por día -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Win Rate por Día de la Semana</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="winRateWeekdayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recomendaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis de patrones por día de la semana</h5>
+                    <p>Basado en el análisis de tus operaciones por día de la semana, aquí hay algunas observaciones y recomendaciones:</p>
+                    
+                    <ul>
+                        {% if best_day %}
+                        <li><strong>Mejor día para operar:</strong> Tu mejor rendimiento es el {{ best_day.weekday }} con un P&L de ${{ best_day.totalPL|format_number }} y un win rate del {{ best_day.winRate|format_percent }}. Considera concentrar más operaciones en este día.</li>
+                        {% endif %}
+                        
+                        {% if worst_day %}
+                        <li><strong>Día a evitar:</strong> El {{ worst_day.weekday }} has tenido tu peor desempeño con un P&L de ${{ worst_day.totalPL|format_number }}. Considera reducir o evitar operar en este día si es posible.</li>
+                        {% endif %}
+                        
+                        {% if most_active_day %}
+                        <li><strong>Día más activo:</strong> Realizas más operaciones el {{ most_active_day.weekday }} ({{ most_active_day.totalTrades }} operaciones). {% if most_active_day.totalPL < 0 %}Sin embargo, tu P&L en este día es negativo (${{ most_active_day.totalPL|format_number }}). Considera revisar tu estrategia en este día o reducir el tamaño de posición.{% else %}Este día te ha generado un P&L de ${{ most_active_day.totalPL|format_number }}, lo que parece favorable.{% endif %}</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>

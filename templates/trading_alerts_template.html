@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Trading Alerts - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Trading Alerts</h1>
+    <a href="{{ url_for('create_alert') }}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> Crear Nueva Alerta
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Alertas Activas -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Alertas Activas</h6>
+            </div>
+            <div class="card-body">
+                {% if active_alerts %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="activeAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for alert in active_alerts %}
+                                <tr>
+                                    <td>{{ alert.name }}</td>
+                                    <td>{{ alert.description }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger disable-alert" data-id="{{ alert.id }}">
+                                            Desactivar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">No hay alertas activas</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas Disparadas -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Alertas Disparadas</h6>
+            </div>
+            <div class="card-body">
+                {% if triggered_alerts %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="triggeredAlertsTable">
+                            <thead>
+                                <tr>
+                                    <th>Alerta</th>
+                                    <th>Órdenes Coincidentes</th>
+                                    <th>Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trigger in triggered_alerts %}
+                                <tr>
+                                    <td>{{ trigger.alert.name }}</td>
+                                    <td>{{ trigger.matching_orders|length }} órdenes</td>
+                                    <td>{{ trigger.triggered_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted">No hay alertas disparadas recientemente</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Inicializar DataTables
+        $('#activeAlertsTable, #triggeredAlertsTable').DataTable({
+            responsive: true,
+            pageLength: 10
+        });
+
+        // Manejar desactivación de alertas
+        $('.disable-alert').on('click', function() {
+            const alertId = $(this).data('id');
+            
+            $.ajax({
+                url: '{{ url_for("disable_alert") }}',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ alert_id: alertId }),
+                success: function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Error al desactivar la alerta');
+                    }
+                },
+                error: function() {
+                    alert('Error de conexión');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
