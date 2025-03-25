@@ -24,20 +24,27 @@
                     <div class="form-group mb-3">
                         <label class="form-label">Símbolos</label>
                         <div class="row">
-                            {% set symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'FB', 'TSLA', 'NVDA'] %}
-                            {% for symbol in symbols %}
-                            <div class="col-md-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           id="symbol_{{ symbol }}" 
-                                           name="symbol" 
-                                           value="{{ symbol }}">
-                                    <label class="form-check-label" for="symbol_{{ symbol }}">
-                                        {{ symbol }}
-                                    </label>
+                            {% if symbols %}
+                                {% for symbol in symbols %}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" 
+                                               id="symbol_{{ symbol }}" 
+                                               name="symbol" 
+                                               value="{{ symbol }}">
+                                        <label class="form-check-label" for="symbol_{{ symbol }}">
+                                            {{ symbol }}
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                            {% endfor %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        No hay símbolos disponibles. Sube datos de trading para continuar.
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 

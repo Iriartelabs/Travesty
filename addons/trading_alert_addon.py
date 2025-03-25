@@ -140,13 +140,21 @@ def trading_alerts_view():
     return render_template(
         'trading_alerts.html',
         triggered_alerts=triggered_alerts,
-        active_alerts=active_alerts
+        active_alerts=active_alerts,
+        processed_data=processed_data  # Asegurar que esta variable esté disponible
     )
 
 def create_alert_view():
     """
     Vista para crear nuevas alertas
     """
+    from app import processed_data
+    
+    # Verificar si hay datos cargados
+    if processed_data is None:
+        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         # Recoger datos del formulario
         alert_name = request.form.get('name')
@@ -177,7 +185,17 @@ def create_alert_view():
         flash(f'Alerta "{alert_name}" creada exitosamente', 'success')
         return redirect(url_for('trading_alerts'))
     
-    return render_template('create_alert.html')
+    # Obtener símbolos únicos para mostrar en el formulario
+    unique_symbols = set()
+    for order in processed_data['processed_orders']:
+        if 'symb' in order and order['symb']:
+            unique_symbols.add(order['symb'])
+    
+    return render_template(
+        'create_alert.html',
+        symbols=sorted(list(unique_symbols)),
+        processed_data=processed_data
+    )
 
 def register_addon():
     """
@@ -198,3 +216,4 @@ def register_addon():
 # Registrar automáticamente al importar
 if __name__ != '__main__':
     register_addon()
+    

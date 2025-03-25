@@ -7,9 +7,6 @@ from flask import render_template, redirect, url_for, flash
 import json
 from datetime import datetime
 
-# Variable global para acceder a los datos procesados
-processed_data = None
-
 def analyze_by_weekday(orders):
     """Analiza rendimiento por día de la semana"""
     weekdays = {}
@@ -64,6 +61,8 @@ def weekday_analysis_view():
     # Importar la variable global desde app.py
     from app import processed_data
     
+    print(f"[DEBUG] weekday_analysis_view - processed_data: {processed_data is not None}")
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -89,7 +88,8 @@ def weekday_analysis_view():
         weekday_json=weekday_json,
         best_day=best_day,
         worst_day=worst_day,
-        most_active_day=most_active_day
+        most_active_day=most_active_day,
+        processed_data=processed_data  # Añadir esta variable para uso en la plantilla
     )
 
 def register_addon():

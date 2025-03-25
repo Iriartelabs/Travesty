@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Debug Rutas - DAS Trader Analyzer{% endblock %}
+
+{% block header %}Debug de Rutas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rutas Registradas</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Ruta</th>
+                                <th>Endpoint</th>
+                                <th>Métodos</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for route in routes %}
+                            <tr>
+                                <td><code>{{ route.route }}</code></td>
+                                <td>{{ route.endpoint }}</td>
+                                <td>{{ route.methods }}</td>
+                                <td>
+                                    <a href="{{ route.route }}" class="btn btn-sm btn-primary" target="_blank">Probar</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

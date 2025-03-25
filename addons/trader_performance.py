@@ -90,7 +90,8 @@ def trader_performance_view():
     return render_template(
         'trader_performance.html',
         trader_performance=trader_data,
-        trader_json=trader_json
+        trader_json=trader_json,
+        processed_data=processed_data  # Añadir esta variable para uso en la plantilla
     )
 
 def register_addon():
