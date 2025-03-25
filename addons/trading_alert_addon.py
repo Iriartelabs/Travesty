@@ -125,14 +125,25 @@ def trading_alerts_view():
     """
     Vista principal para gestionar alertas de trading
     """
-    from app import processed_data
+    # Importar las variables y funciones globales desde app.py
+    from app import processed_data, load_processed_data
     
-    if processed_data is None:
+    # Agregar mensaje de depuración
+    print(f"[DEBUG] trading_alerts_view - processed_data: {processed_data is not None}")
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    data = processed_data
+    if data is None:
+        data = load_processed_data()
+        print(f"[DEBUG] Datos cargados desde caché en addon trading_alerts: {data is not None}")
+    
+    # Si aún no hay datos, mostrar mensaje
+    if data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
     # Verificar alertas
-    triggered_alerts = alert_system.check_alerts(processed_data['processed_orders'])
+    triggered_alerts = alert_system.check_alerts(data['processed_orders'])
     
     # Obtener alertas activas
     active_alerts = alert_system.get_active_alerts()
@@ -141,17 +152,24 @@ def trading_alerts_view():
         'trading_alerts.html',
         triggered_alerts=triggered_alerts,
         active_alerts=active_alerts,
-        processed_data=processed_data  # Asegurar que esta variable esté disponible
+        processed_data=data  # Pasar los datos correctos a la plantilla
     )
 
 def create_alert_view():
     """
     Vista para crear nuevas alertas
     """
-    from app import processed_data
+    # Importar las variables y funciones globales desde app.py
+    from app import processed_data, load_processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    data = processed_data
+    if data is None:
+        data = load_processed_data()
+        print(f"[DEBUG] Datos cargados desde caché en create_alert_view: {data is not None}")
     
     # Verificar si hay datos cargados
-    if processed_data is None:
+    if data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
@@ -187,14 +205,14 @@ def create_alert_view():
     
     # Obtener símbolos únicos para mostrar en el formulario
     unique_symbols = set()
-    for order in processed_data['processed_orders']:
+    for order in data['processed_orders']:
         if 'symb' in order and order['symb']:
             unique_symbols.add(order['symb'])
     
     return render_template(
         'create_alert.html',
         symbols=sorted(list(unique_symbols)),
-        processed_data=processed_data
+        processed_data=data
     )
 
 def register_addon():
@@ -216,4 +234,3 @@ def register_addon():
 # Registrar automáticamente al importar
 if __name__ != '__main__':
     register_addon()
-    

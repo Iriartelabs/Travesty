@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 import os
 import csv
 import json
+import pickle
 from datetime import datetime
 import importlib
 
@@ -24,11 +25,35 @@ DEFAULT_ORDERS_PATH = 'data/Orders.csv'
 DEFAULT_TRADES_PATH = 'data/Trades.csv'
 DEFAULT_TICKETS_PATH = 'data/Tickets.csv'
 
+# Ruta para el archivo de caché de datos procesados
+DATA_CACHE_PATH = 'data/processed_cache.pkl'
+
 # Variable global para almacenar resultados (accesible para addons)
 processed_data = None
 
 # Importar desde utils
 from utils.data_processor import process_trading_data
+
+# Función para guardar datos procesados en caché
+def save_processed_data(data):
+    """Guarda los datos procesados en un archivo de caché usando pickle"""
+    os.makedirs(os.path.dirname(DATA_CACHE_PATH), exist_ok=True)
+    with open(DATA_CACHE_PATH, 'wb') as f:
+        pickle.dump(data, f)
+    print(f"[INFO] Datos guardados en caché: {DATA_CACHE_PATH}")
+
+# Función para cargar datos procesados desde caché
+def load_processed_data():
+    """Carga los datos procesados desde un archivo de caché"""
+    if os.path.exists(DATA_CACHE_PATH):
+        try:
+            with open(DATA_CACHE_PATH, 'rb') as f:
+                data = pickle.load(f)
+            print(f"[INFO] Datos cargados desde caché: {DATA_CACHE_PATH}")
+            return data
+        except Exception as e:
+            print(f"[ERROR] No se pudieron cargar datos desde caché: {e}")
+    return None
 
 # Filtros personalizados para plantillas
 @app.template_filter('format_number')
@@ -81,6 +106,9 @@ def upload_files():
                 DEFAULT_TICKETS_PATH
             )
             
+            # Guardar en caché para futuras sesiones
+            save_processed_data(processed_data)
+            
             return redirect(url_for('dashboard'))
         else:
             flash('No se encontraron archivos predeterminados', 'error')
@@ -113,6 +141,9 @@ def upload_files():
         # Procesar los datos
         processed_data = process_trading_data(orders_path, trades_path, tickets_path)
         
+        # Guardar en caché para futuras sesiones
+        save_processed_data(processed_data)
+        
         # Copiar archivos a la carpeta 'data' para uso futuro
         import shutil
         shutil.copy(orders_path, DEFAULT_ORDERS_PATH)
@@ -124,6 +155,12 @@ def upload_files():
 @app.route('/dashboard')
 def dashboard():
     """Muestra el dashboard con resumen de métricas"""
+    global processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    if processed_data is None:
+        processed_data = load_processed_data()
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -148,6 +185,12 @@ def dashboard():
 @app.route('/symbols')
 def symbols():
     """Análisis por símbolo"""
+    global processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    if processed_data is None:
+        processed_data = load_processed_data()
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -166,6 +209,12 @@ def symbols():
 @app.route('/time')
 def time_analysis():
     """Análisis por hora del día"""
+    global processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    if processed_data is None:
+        processed_data = load_processed_data()
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -195,6 +244,12 @@ def time_analysis():
 @app.route('/buysell')
 def buysell():
     """Análisis por tipo (compra/venta)"""
+    global processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    if processed_data is None:
+        processed_data = load_processed_data()
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -213,6 +268,12 @@ def buysell():
 @app.route('/trades')
 def trades():
     """Lista detallada de operaciones"""
+    global processed_data
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    if processed_data is None:
+        processed_data = load_processed_data()
+    
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
@@ -359,7 +420,7 @@ def create_alert():
     except ImportError:
         flash('El addon de alertas no está disponible', 'error')
         return redirect(url_for('index'))
-        
+
 @app.route('/debug_routes')
 def debug_routes():
     """Muestra todas las rutas registradas para depuración"""
@@ -385,8 +446,11 @@ if __name__ == '__main__':
     # Inicializar el sistema de addons
     AddonRegistry.initialize(app)
     
-    # Comprobar si hay archivos predeterminados y cargarlos
-    if (os.path.exists(DEFAULT_ORDERS_PATH) and 
+    # Intentar cargar desde caché primero
+    processed_data = load_processed_data()
+    
+    # Si no hay datos en caché, intentar cargar desde archivos
+    if processed_data is None and (os.path.exists(DEFAULT_ORDERS_PATH) and 
         os.path.exists(DEFAULT_TRADES_PATH) and 
         os.path.exists(DEFAULT_TICKETS_PATH)):
         
@@ -396,7 +460,9 @@ if __name__ == '__main__':
                 DEFAULT_TRADES_PATH, 
                 DEFAULT_TICKETS_PATH
             )
-            print(f"[INFO] Datos cargados automáticamente al iniciar: {processed_data is not None}")
+            # Guardar en caché para futuros reinicios
+            save_processed_data(processed_data)
+            print(f"[INFO] Datos cargados y guardados al iniciar: {processed_data is not None}")
         except Exception as e:
             print(f"[ERROR] No se pudieron cargar los datos automáticamente: {e}")
     

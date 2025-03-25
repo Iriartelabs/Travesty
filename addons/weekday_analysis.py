@@ -58,17 +58,25 @@ def analyze_by_weekday(orders):
 
 def weekday_analysis_view():
     """Vista para el addon de análisis por día de la semana"""
-    # Importar la variable global desde app.py
-    from app import processed_data
+    # Importar las variables y funciones globales desde app.py
+    from app import processed_data, load_processed_data
     
+    # Agregar mensaje de depuración
     print(f"[DEBUG] weekday_analysis_view - processed_data: {processed_data is not None}")
     
-    if processed_data is None:
+    # Si no hay datos en memoria, intentar cargar desde caché
+    data = processed_data
+    if data is None:
+        data = load_processed_data()
+        print(f"[DEBUG] Datos cargados desde caché en addon weekday_analysis: {data is not None}")
+    
+    # Si aún no hay datos, mostrar mensaje
+    if data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
-    # Realizar el análisis
-    weekday_data = analyze_by_weekday(processed_data['processed_orders'])
+    # Realizar el análisis con los datos obtenidos
+    weekday_data = analyze_by_weekday(data['processed_orders'])
     
     # Convertir a JSON para usar en gráficos
     weekday_json = json.dumps(weekday_data)
@@ -89,7 +97,7 @@ def weekday_analysis_view():
         best_day=best_day,
         worst_day=worst_day,
         most_active_day=most_active_day,
-        processed_data=processed_data  # Añadir esta variable para uso en la plantilla
+        processed_data=data  # Pasar los datos correctos a la plantilla
     )
 
 def register_addon():

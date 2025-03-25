@@ -77,21 +77,32 @@ def trader_performance_view():
     Returns:
         Rendered HTML template with trader performance data
     """
-    from app import processed_data
+    # Importar las variables y funciones globales desde app.py
+    from app import processed_data, load_processed_data
     
-    if processed_data is None:
-        flash('No data available. Please upload files first.', 'error')
+    # Agregar mensaje de depuración
+    print(f"[DEBUG] trader_performance_view - processed_data: {processed_data is not None}")
+    
+    # Si no hay datos en memoria, intentar cargar desde caché
+    data = processed_data
+    if data is None:
+        data = load_processed_data()
+        print(f"[DEBUG] Datos cargados desde caché en addon trader_performance: {data is not None}")
+    
+    # Si aún no hay datos, mostrar mensaje
+    if data is None:
+        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
-    # Analyze trader performance
-    trader_data = analyze_trader_performance(processed_data['processed_orders'])
+    # Analyze trader performance using the obtained data
+    trader_data = analyze_trader_performance(data['processed_orders'])
     trader_json = json.dumps(trader_data)
     
     return render_template(
         'trader_performance.html',
         trader_performance=trader_data,
         trader_json=trader_json,
-        processed_data=processed_data  # Añadir esta variable para uso en la plantilla
+        processed_data=data  # Pasar los datos correctos a la plantilla
     )
 
 def register_addon():
