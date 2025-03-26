@@ -14,7 +14,7 @@
                 <h6 class="m-0 font-weight-bold text-primary">Configuración de Alerta</h6>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('create_alert') }}">
+                <form method="POST" action="{{ url_for('trading_alerts.create_alert') }}">
                     <div class="form-group mb-3">
                         <label for="name" class="form-label">Nombre de la Alerta</label>
                         <input type="text" class="form-control" id="name" name="name" required 

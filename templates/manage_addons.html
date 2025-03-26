@@ -11,7 +11,7 @@
         <div class="card shadow">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Addons Instalados</h6>
-                <a href="{{ url_for('reload_addons') }}" class="btn btn-sm btn-primary">
+                <a href="{{ url_for('analysis.reload_addons') }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-sync-alt mr-1"></i> Recargar Addons
                 </a>
             </div>
@@ -66,7 +66,7 @@
                 <h6 class="m-0 font-weight-bold text-primary">Crear Nuevo Addon</h6>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('create_new_addon') }}" method="post">
+                <form action="{{ url_for('analysis.create_new_addon') }}" method="post">
                     <div class="mb-3">
                         <label for="name" class="form-label">Nombre del Addon</label>
                         <input type="text" class="form-control" id="name" name="name" required>

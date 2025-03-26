@@ -122,14 +122,14 @@
             </div>
             <div class="card-body">
                 <div class="accordion" id="alertDetailsAccordion">
-                    {% for i, trigger in enumerate(triggered_alerts) %}
+                    {% for trigger in triggered_alerts %}
                     <div class="accordion-item mb-3 border">
-                        <h2 class="accordion-header" id="heading{{ i }}">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ i }}" aria-expanded="false" aria-controls="collapse{{ i }}">
+                        <h2 class="accordion-header" id="heading{{ loop.index }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
                                 {{ trigger.alert.name }} - {{ trigger.matching_orders|length }} coincidencias
                             </button>
                         </h2>
-                        <div id="collapse{{ i }}" class="accordion-collapse collapse" aria-labelledby="heading{{ i }}" data-bs-parent="#alertDetailsAccordion">
+                        <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#alertDetailsAccordion">
                             <div class="accordion-body">
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped">

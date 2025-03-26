@@ -1,9 +1,9 @@
 import json
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 
 from config import Config
 from services.cache_manager import load_processed_data
-from addon_system import AddonRegistry
+from addon_system import AddonRegistry, load_addons_from_directory, create_addon_template
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -120,3 +120,42 @@ def manage_addons():
         processed_data=processed_data,
         sidebar_items=AddonRegistry.get_sidebar_items()
     )
+
+@analysis_bp.route('/reload-addons')
+def reload_addons():
+    """Recarga todos los addons desde el directorio"""
+    # Recargar addons desde el directorio
+    load_addons_from_directory()
+    
+    flash('Addons recargados correctamente', 'success')
+    return redirect(url_for('analysis.manage_addons'))
+
+@analysis_bp.route('/create-new-addon', methods=['POST'])
+def create_new_addon():
+    """Crea un nuevo addon a partir de los datos del formulario"""
+    name = request.form.get('name', '')
+    route = request.form.get('route', '')
+    description = request.form.get('description', '')
+    icon = request.form.get('icon', 'chart-bar')
+    
+    if not name:
+        flash('El nombre del addon es obligatorio', 'error')
+        return redirect(url_for('analysis.manage_addons'))
+    
+    # Si no se proporciona una ruta, generarla a partir del nombre
+    if not route:
+        route = name.lower().replace(' ', '-')
+    
+    # Asegurar que la ruta comienza con /
+    if not route.startswith('/'):
+        route = '/' + route
+    
+    # Crear plantilla para el nuevo addon
+    success = create_addon_template(name, route, description, icon)
+    
+    if success:
+        flash(f'Addon "{name}" creado correctamente. Recarga los addons para activarlo.', 'success')
+    else:
+        flash(f'Error al crear el addon "{name}"', 'error')
+    
+    return redirect(url_for('analysis.manage_addons'))
