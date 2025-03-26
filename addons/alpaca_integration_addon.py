@@ -209,6 +209,123 @@ def submit_order():
             'message': error_msg
         })
 
+def get_positions():
+    """Endpoint para obtener posiciones reales de Alpaca"""
+    import requests
+    
+    # Cargar credenciales
+    credentials = load_credentials()
+    
+    # Verificar que hay credenciales configuradas
+    if not credentials.get('api_key') or not credentials.get('api_secret'):
+        return jsonify({
+            'success': False,
+            'message': 'No hay credenciales de API configuradas'
+        })
+    
+    try:
+        # Configurar headers y URL
+        headers = {
+            'APCA-API-KEY-ID': credentials.get('api_key'),
+            'APCA-API-SECRET-KEY': credentials.get('api_secret')
+        }
+        
+        # Determinar el endpoint correcto
+        base_url = credentials.get('base_url')
+        if not base_url.endswith('/'):
+            base_url += '/'
+        
+        positions_url = f"{base_url}positions"
+        
+        # Consultar las posiciones en Alpaca
+        response = requests.get(
+            positions_url,
+            headers=headers,
+            timeout=10
+        )
+        
+        # Procesar respuesta
+        if response.status_code == 200:
+            positions = response.json()
+            return jsonify({
+                'success': True,
+                'positions': positions
+            })
+        else:
+            error_msg = f"Error al obtener posiciones: {response.status_code} - {response.text}"
+            print(f"[ERROR] {error_msg}")
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            })
+            
+    except Exception as e:
+        error_msg = f"Error al obtener posiciones: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        })
+
+def get_order_history():
+    """Endpoint para obtener historial de órdenes de Alpaca"""
+    import requests
+    
+    # Cargar credenciales
+    credentials = load_credentials()
+    
+    # Verificar que hay credenciales configuradas
+    if not credentials.get('api_key') or not credentials.get('api_secret'):
+        return jsonify({
+            'success': False,
+            'message': 'No hay credenciales de API configuradas'
+        })
+    
+    try:
+        # Configurar headers y URL
+        headers = {
+            'APCA-API-KEY-ID': credentials.get('api_key'),
+            'APCA-API-SECRET-KEY': credentials.get('api_secret')
+        }
+        
+        # Determinar el endpoint correcto
+        base_url = credentials.get('base_url')
+        if not base_url.endswith('/'):
+            base_url += '/'
+        
+        # Usar parámetros para limitar el número de órdenes
+        orders_url = f"{base_url}orders?status=all&limit=10"
+        
+        # Consultar las órdenes en Alpaca
+        response = requests.get(
+            orders_url,
+            headers=headers,
+            timeout=10
+        )
+        
+        # Procesar respuesta
+        if response.status_code == 200:
+            orders = response.json()
+            return jsonify({
+                'success': True,
+                'orders': orders
+            })
+        else:
+            error_msg = f"Error al obtener historial: {response.status_code} - {response.text}"
+            print(f"[ERROR] {error_msg}")
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            })
+            
+    except Exception as e:
+        error_msg = f"Error al obtener historial: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        })
+
 def alpaca_create_order():
     """Endpoint para enviar órdenes reales a Alpaca (versión GET)"""
     import requests
@@ -349,6 +466,32 @@ def register_addon():
         'template': None,
         'icon': None,
         'active': False,  # No mostrar en la barra lateral
+        'version': '1.0.0',
+        'author': 'DAS Trader Analyzer Team'
+    })
+    
+    # Registrar el endpoint para obtener posiciones
+    AddonRegistry.register('alpaca_get_positions', {
+        'name': 'Alpaca Get Positions',
+        'description': 'Endpoint para obtener posiciones de Alpaca',
+        'route': '/alpaca/get_positions',
+        'view_func': get_positions,
+        'template': None,
+        'icon': None,
+        'active': False,
+        'version': '1.0.0',
+        'author': 'DAS Trader Analyzer Team'
+    })
+    
+    # Registrar el endpoint para obtener historial de órdenes
+    AddonRegistry.register('alpaca_get_order_history', {
+        'name': 'Alpaca Order History',
+        'description': 'Endpoint para obtener historial de órdenes de Alpaca',
+        'route': '/alpaca/get_order_history',
+        'view_func': get_order_history,
+        'template': None,
+        'icon': None,
+        'active': False,
         'version': '1.0.0',
         'author': 'DAS Trader Analyzer Team'
     })

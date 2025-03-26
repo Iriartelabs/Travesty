@@ -204,44 +204,117 @@
             `);
             $('#apiResults').show();
             
-            // Simular una llamada a la API (en producción, esto sería una petición AJAX real)
-            setTimeout(function() {
-                $('#resultsContent').html(`
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Símbolo</th>
-                                    <th>Cantidad</th>
-                                    <th>Valor Actual</th>
-                                    <th>P&L</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>AAPL</td>
-                                    <td>10</td>
-                                    <td>$1,750.00</td>
-                                    <td class="text-success">+$125.30</td>
-                                </tr>
-                                <tr>
-                                    <td>MSFT</td>
-                                    <td>5</td>
-                                    <td>$2,105.50</td>
-                                    <td class="text-success">+$87.25</td>
-                                </tr>
-                                <tr>
-                                    <td>AMZN</td>
-                                    <td>2</td>
-                                    <td>$3,560.00</td>
-                                    <td class="text-danger">-$42.50</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="text-muted mt-2"><small>Nota: Estos son datos de demostración.</small></p>
-                `);
-            }, 1500);
+            // Crear un iframe oculto para recibir la respuesta
+            const iframeId = 'positionsFrame_' + new Date().getTime();
+            const $iframe = $('<iframe>', {
+                name: iframeId,
+                id: iframeId,
+                style: 'display:none'
+            }).appendTo('body');
+            
+            // Cargar la URL en el iframe
+            $iframe.attr('src', '/alpaca/get_positions');
+            
+            // Manejar la respuesta cuando el iframe cargue
+            $iframe.on('load', function() {
+                try {
+                    // Intentar obtener la respuesta JSON del iframe
+                    const iframeContent = $iframe.contents().find('body').text();
+                    const response = JSON.parse(iframeContent);
+                    
+                    if (response.success && response.positions) {
+                        if (response.positions.length === 0) {
+                            // No hay posiciones
+                            $('#resultsContent').html(`
+                                <div class="alert alert-info">
+                                    <h5>No tienes posiciones abiertas</h5>
+                                    <p>Actualmente no tienes ninguna posición abierta en tu cuenta de Alpaca.</p>
+                                </div>
+                            `);
+                        } else {
+                            // Mostrar las posiciones
+                            let tableRows = '';
+                            let totalValue = 0;
+                            
+                            for (const position of response.positions) {
+                                const marketValue = parseFloat(position.market_value);
+                                const unrealizedPL = parseFloat(position.unrealized_pl);
+                                const unrealizedPLPerc = parseFloat(position.unrealized_plpc) * 100;
+                                totalValue += marketValue;
+                                
+                                tableRows += `
+                                    <tr>
+                                        <td>${position.symbol}</td>
+                                        <td>${parseInt(position.qty)}</td>
+                                        <td>${marketValue.toFixed(2)}</td>
+                                        <td class="${unrealizedPL >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${unrealizedPL >= 0 ? '+' : ''}${unrealizedPL.toFixed(2)} (${unrealizedPLPerc.toFixed(2)}%)
+                                        </td>
+                                    </tr>
+                                `;
+                            }
+                            
+                            $('#resultsContent').html(`
+                                <div class="alert alert-info mb-3">
+                                    <strong>Valor total de posiciones:</strong> ${totalValue.toFixed(2)}
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Símbolo</th>
+                                                <th>Cantidad</th>
+                                                <th>Valor Actual</th>
+                                                <th>P&L</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${tableRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="text-muted mt-2"><small>Datos actualizados: ${new Date().toLocaleString()}</small></p>
+                            `);
+                        }
+                    } else {
+                        // Mostrar error
+                        $('#resultsContent').html(`
+                            <div class="alert alert-danger">
+                                <h5>Error al obtener posiciones</h5>
+                                <p>${response.message || 'Error desconocido'}</p>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" id="retryPositions">Intentar Nuevamente</button>
+                            </div>
+                        `);
+                        
+                        $('#retryPositions').click(function() {
+                            $('#btnPositions').click();
+                        });
+                    }
+                } catch (e) {
+                    // Error al procesar la respuesta
+                    $('#resultsContent').html(`
+                        <div class="alert alert-danger">
+                            <h5>Error de comunicación</h5>
+                            <p>No se pudo procesar la respuesta del servidor.</p>
+                            <p><strong>Error:</strong> ${e.message}</p>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="retryPositions">Intentar Nuevamente</button>
+                        </div>
+                    `);
+                    
+                    $('#retryPositions').click(function() {
+                        $('#btnPositions').click();
+                    });
+                }
+                
+                // Eliminar el iframe después de usarlo
+                setTimeout(function() {
+                    $iframe.remove();
+                }, 1000);
+            });
         });
         
         $('#btnHistory').click(function() {
@@ -255,52 +328,137 @@
             `);
             $('#apiResults').show();
             
-            // Simular una llamada a la API
-            setTimeout(function() {
-                $('#resultsContent').html(`
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Símbolo</th>
-                                    <th>Tipo</th>
-                                    <th>Cantidad</th>
-                                    <th>Precio</th>
-                                    <th>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>2025-03-26 09:45:12</td>
-                                    <td>AAPL</td>
-                                    <td>Compra</td>
-                                    <td>10</td>
-                                    <td>$175.00</td>
-                                    <td><span class="badge bg-success">Completada</span></td>
-                                </tr>
-                                <tr>
-                                    <td>2025-03-25 14:30:05</td>
-                                    <td>MSFT</td>
-                                    <td>Compra</td>
-                                    <td>5</td>
-                                    <td>$421.10</td>
-                                    <td><span class="badge bg-success">Completada</span></td>
-                                </tr>
-                                <tr>
-                                    <td>2025-03-25 10:15:33</td>
-                                    <td>AMZN</td>
-                                    <td>Compra</td>
-                                    <td>2</td>
-                                    <td>$1,780.00</td>
-                                    <td><span class="badge bg-success">Completada</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="text-muted mt-2"><small>Nota: Estos son datos de demostración.</small></p>
-                `);
-            }, 1500);
+            // Crear un iframe oculto para recibir la respuesta
+            const iframeId = 'historyFrame_' + new Date().getTime();
+            const $iframe = $('<iframe>', {
+                name: iframeId,
+                id: iframeId,
+                style: 'display:none'
+            }).appendTo('body');
+            
+            // Cargar la URL en el iframe
+            $iframe.attr('src', '/alpaca/get_order_history');
+            
+            // Manejar la respuesta cuando el iframe cargue
+            $iframe.on('load', function() {
+                try {
+                    // Intentar obtener la respuesta JSON del iframe
+                    const iframeContent = $iframe.contents().find('body').text();
+                    const response = JSON.parse(iframeContent);
+                    
+                    if (response.success && response.orders) {
+                        if (response.orders.length === 0) {
+                            // No hay órdenes
+                            $('#resultsContent').html(`
+                                <div class="alert alert-info">
+                                    <h5>No hay órdenes recientes</h5>
+                                    <p>No se encontraron órdenes recientes en tu cuenta de Alpaca.</p>
+                                </div>
+                            `);
+                        } else {
+                            // Mostrar las órdenes
+                            let tableRows = '';
+                            
+                            for (const order of response.orders) {
+                                const createdAt = new Date(order.created_at).toLocaleString();
+                                const side = order.side === 'buy' ? 'Compra' : 'Venta';
+                                const qty = order.qty;
+                                const symbol = order.symbol;
+                                const type = order.type;
+                                const status = order.status;
+                                
+                                let statusBadge = '';
+                                switch (status) {
+                                    case 'filled':
+                                        statusBadge = '<span class="badge bg-success">Completada</span>';
+                                        break;
+                                    case 'partially_filled':
+                                        statusBadge = '<span class="badge bg-info">Parcialmente completada</span>';
+                                        break;
+                                    case 'canceled':
+                                        statusBadge = '<span class="badge bg-danger">Cancelada</span>';
+                                        break;
+                                    case 'pending_new':
+                                    case 'accepted':
+                                    case 'new':
+                                        statusBadge = '<span class="badge bg-warning">Pendiente</span>';
+                                        break;
+                                    default:
+                                        statusBadge = '<span class="badge bg-secondary">' + status + '</span>';
+                                }
+                                
+                                tableRows += `
+                                    <tr>
+                                        <td>${createdAt}</td>
+                                        <td>${symbol}</td>
+                                        <td>${side}</td>
+                                        <td>${qty}</td>
+                                        <td>${type}</td>
+                                        <td>${statusBadge}</td>
+                                    </tr>
+                                `;
+                            }
+                            
+                            $('#resultsContent').html(`
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Símbolo</th>
+                                                <th>Tipo</th>
+                                                <th>Cantidad</th>
+                                                <th>Orden</th>
+                                                <th>Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${tableRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="text-muted mt-2"><small>Datos actualizados: ${new Date().toLocaleString()}</small></p>
+                            `);
+                        }
+                    } else {
+                        // Mostrar error
+                        $('#resultsContent').html(`
+                            <div class="alert alert-danger">
+                                <h5>Error al obtener historial</h5>
+                                <p>${response.message || 'Error desconocido'}</p>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" id="retryHistory">Intentar Nuevamente</button>
+                            </div>
+                        `);
+                        
+                        $('#retryHistory').click(function() {
+                            $('#btnHistory').click();
+                        });
+                    }
+                } catch (e) {
+                    // Error al procesar la respuesta
+                    $('#resultsContent').html(`
+                        <div class="alert alert-danger">
+                            <h5>Error de comunicación</h5>
+                            <p>No se pudo procesar la respuesta del servidor.</p>
+                            <p><strong>Error:</strong> ${e.message}</p>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" id="retryHistory">Intentar Nuevamente</button>
+                        </div>
+                    `);
+                    
+                    $('#retryHistory').click(function() {
+                        $('#btnHistory').click();
+                    });
+                }
+                
+                // Eliminar el iframe después de usarlo
+                setTimeout(function() {
+                    $iframe.remove();
+                }, 1000);
+            });
         });
         
         $('#btnOrders').click(function() {
