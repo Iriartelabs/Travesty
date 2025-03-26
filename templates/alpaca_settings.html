@@ -3,217 +3,95 @@
 {% block title %}Configuración de Alpaca - DAS Trader Analyzer{% endblock %}
 
 {% block header %}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Configuración de Alpaca</h1>
-    <a href="{{ url_for('alpaca.alpaca_dashboard') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver al Dashboard
-    </a>
-</div>
+<h1 class="h3 mb-4 text-gray-800">Configuración de Alpaca API</h1>
 {% endblock %}
 
 {% block content %}
 <div class="row">
-    <div class="col-lg-6">
+    <div class="col-lg-8">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Credenciales de API de Alpaca</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Credenciales de API</h6>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('alpaca.alpaca_settings') }}">
-                    <div class="mb-3">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Nota:</strong> Las credenciales se guardarán en:
+                    <code>{{ credentials_file }}</code>
+                </div>
+                
+                <form method="GET" action="/alpaca/settings">
+                    <input type="hidden" name="save" value="1">
+                
+                    <div class="form-group mb-3">
                         <label for="api_key" class="form-label">API Key</label>
-                        <input type="text" class="form-control" id="api_key" name="api_key" value="{{ api_key }}" required>
-                        <div class="form-text text-muted small">
-                            La clave de API proporcionada por Alpaca
-                        </div>
+                        <input type="text" class="form-control" id="api_key" name="api_key" 
+                               value="{{ api_key }}" placeholder="Tu API key de Alpaca">
                     </div>
-                    
-                    <div class="mb-3">
+
+                    <div class="form-group mb-3">
                         <label for="api_secret" class="form-label">API Secret</label>
-                        <input type="password" class="form-control" id="api_secret" name="api_secret" value="{{ api_secret }}" required>
-                        <div class="form-text text-muted small">
-                            El secreto de API proporcionado por Alpaca
+                        <input type="password" class="form-control" id="api_secret" name="api_secret" 
+                               value="{{ api_secret }}" placeholder="Tu API secret de Alpaca">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="base_url" class="form-label">API Base URL</label>
+                        <select class="form-control" id="base_url" name="base_url">
+                            <option value="https://paper-api.alpaca.markets/v2" 
+                                    {% if base_url == 'https://paper-api.alpaca.markets/v2' %}selected{% endif %}>
+                                Paper Trading (Simulación) - https://paper-api.alpaca.markets/v2
+                            </option>
+                            <option value="https://api.alpaca.markets/v2" 
+                                    {% if base_url == 'https://api.alpaca.markets/v2' %}selected{% endif %}>
+                                Live Trading (Dinero Real) - https://api.alpaca.markets/v2
+                            </option>
+                        </select>
+                        <div class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Esta configuración define si estás usando Paper Trading o Live Trading.
                         </div>
                     </div>
-                    
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Seguridad:</strong> 
+                        Las credenciales se guardarán en un archivo local en el servidor.
+                        Asegúrate de que este archivo no se suba a repositorios git añadiéndolo a .gitignore.
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Modo de Trading</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="is_paper" id="is_paper_true" value="true" {% if is_paper %}checked{% endif %}>
-                            <label class="form-check-label" for="is_paper_true">
-                                Paper Trading (modo de prueba)
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="is_paper" id="is_paper_false" value="false" {% if not is_paper %}checked{% endif %}>
-                            <label class="form-check-label" for="is_paper_false">
-                                Trading Real
-                            </label>
-                        </div>
-                        <div class="form-text text-muted small">
-                            El modo Paper Trading te permite operar con dinero virtual y datos de mercado reales.
-                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar Configuración
+                        </button>
+                        <a href="/alpaca" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save fa-sm text-white-50"></i> Guardar Configuración
-                    </button>
                 </form>
             </div>
         </div>
     </div>
-    
-    <div class="col-lg-6">
+
+    <div class="col-lg-4">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Guía de Configuración</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Ayuda</h6>
             </div>
             <div class="card-body">
-                <h5 class="text-primary">Obtener tus Claves de API</h5>
-                <p>Para integrar tu sistema con Alpaca, necesitas obtener tus claves de API siguiendo estos pasos:</p>
-                
+                <h5>¿Dónde obtener las credenciales?</h5>
+                <p>Puedes obtener tus credenciales de API de Alpaca siguiendo estos pasos:</p>
                 <ol>
-                    <li>Crea una cuenta en <a href="https://alpaca.markets" target="_blank">Alpaca Markets</a></li>
-                    <li>Inicia sesión en tu cuenta</li>
-                    <li>Ve a "Paper Trading" para obtener claves de prueba o "Live Trading" para operaciones reales</li>
-                    <li>Navega a la sección "API" o "Developer"</li>
-                    <li>Genera o recupera tus claves de API (API Key y API Secret)</li>
+                    <li>Inicia sesión en <a href="https://app.alpaca.markets/login" target="_blank">Alpaca</a></li>
+                    <li>Ve a la sección "Paper Account" o "Live Trading"</li>
+                    <li>Haz clic en "Generate New Key"</li>
+                    <li>Copia la API Key y Secret</li>
                 </ol>
-                
-                <div class="alert alert-warning">
-                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Importante</h5>
-                    <p>Nunca compartas tus claves de API con nadie. Estas claves dan acceso completo a tu cuenta de Alpaca.</p>
-                    <hr>
-                    <p class="mb-0">Si sospechas que tus claves han sido comprometidas, debes revocarlas inmediatamente y generar nuevas en la plataforma de Alpaca.</p>
-                </div>
-                
-                <h5 class="text-primary mt-4">Modos de Trading</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card bg-light mb-3">
-                            <div class="card-header font-weight-bold">Paper Trading</div>
-                            <div class="card-body">
-                                <ul class="mb-0">
-                                    <li>Dinero virtual</li>
-                                    <li>Datos de mercado reales</li>
-                                    <li>Sin riesgo financiero</li>
-                                    <li>Perfecto para pruebas</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card bg-light mb-3">
-                            <div class="card-header font-weight-bold text-danger">Trading Real</div>
-                            <div class="card-body">
-                                <ul class="mb-0">
-                                    <li>Utiliza dinero real</li>
-                                    <li>Operaciones reales</li>
-                                    <li>Conlleva riesgo financiero</li>
-                                    <li>Solo para usuarios experimentados</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb"></i> <strong>Consejo:</strong> 
+                    Comienza con Paper Trading para probar sin riesgo antes de usar dinero real.
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Preguntas Frecuentes</h6>
-            </div>
-            <div class="card-body">
-                <div class="accordion" id="faqAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingOne">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                                ¿Qué puedo hacer con la integración de Alpaca?
-                            </button>
-                        </h2>
-                        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                La integración con Alpaca te permite acceder a datos de mercado en tiempo real para tus símbolos de interés. Esto es especialmente útil para configurar alertas basadas en condiciones de mercado, como movimientos de precio, cruces de medias móviles o niveles de sobrecompra/sobreventa en indicadores técnicos.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingTwo">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-                                ¿Es seguro almacenar mis claves de API en la aplicación?
-                            </button>
-                        </h2>
-                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                Las claves de API se almacenan localmente en tu máquina y solo son accesibles por tu instancia de la aplicación. Para mayor seguridad, te recomendamos utilizar claves de API con permisos limitados (solo lectura) si no planeas ejecutar operaciones automáticas.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingThree">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-                                ¿La integración con Alpaca tiene algún costo?
-                            </button>
-                        </h2>
-                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                Alpaca ofrece datos de mercado básicos de forma gratuita, pero algunos datos premium pueden requerir una suscripción. Consulta la <a href="https://alpaca.markets/docs/market-data/" target="_blank">documentación de Alpaca sobre datos de mercado</a> para obtener más información sobre los niveles de servicio disponibles.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="headingFour">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
-                                ¿Puedo ejecutar operaciones automáticas con esta integración?
-                            </button>
-                        </h2>
-                        <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                La versión actual de la integración está enfocada en obtener datos de mercado para alertas y análisis. La ejecución automática de órdenes no está implementada por defecto, pero la API de Alpaca sí lo permite y podría añadirse como una funcionalidad adicional en el futuro.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    $(document).ready(function() {
-        // Mostrar advertencia al seleccionar Trading Real
-        $('input[name="is_paper"]').change(function() {
-            if ($(this).val() === 'false') {
-                if (!confirm('ADVERTENCIA: Estás seleccionando el modo de Trading Real, que utiliza dinero real para operar. ¿Estás seguro de que deseas continuar?')) {
-                    $('#is_paper_true').prop('checked', true);
-                }
-            }
-        });
-        
-        // Mostrar/ocultar contraseña
-        $('#api_secret').after('<div class="mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSecret"><i class="fas fa-eye"></i> Mostrar</button></div>');
-        
-        $('#toggleSecret').click(function() {
-            const secretField = $('#api_secret');
-            const fieldType = secretField.attr('type');
-            
-            if (fieldType === 'password') {
-                secretField.attr('type', 'text');
-                $(this).html('<i class="fas fa-eye-slash"></i> Ocultar');
-            } else {
-                secretField.attr('type', 'password');
-                $(this).html('<i class="fas fa-eye"></i> Mostrar');
-            }
-        });
-    });
-</script>
 {% endblock %}
