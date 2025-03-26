@@ -1,19 +1,40 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, g
 import os
 import csv
 import json
 import pickle
-from datetime import datetime
+from datetime import datetime, timedelta
 import importlib
+
+# Importar la configuración
+from config import get_config
 
 # Importar el sistema de addons
 from addon_system import AddonRegistry, load_addons_from_directory, create_addon_template
 
+# Importar el módulo de base de datos
+from db_integration import (
+    init_app, 
+    import_data_to_db, 
+    get_all_processed_data,
+    get_processed_orders_from_db,
+    get_daily_metrics,
+    get_symbol_performance,
+    get_time_performance,
+    get_buysell_performance,
+    get_available_symbols,
+    get_available_date_range,
+    get_trading_alerts,
+    add_trading_alert,
+    disable_trading_alert,
+    check_trading_alerts,
+    get_triggered_alerts,
+    summarize_database_stats
+)
+
 # Configuración de la aplicación Flask
 app = Flask(__name__)
-app.secret_key = 'das_trader_analyzer_secret_key'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Límite de 16MB para subidas
+app.config.from_object(get_config())
 
 # Asegurar que existan las carpetas necesarias
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -31,29 +52,8 @@ DATA_CACHE_PATH = 'data/processed_cache.pkl'
 # Variable global para almacenar resultados (accesible para addons)
 processed_data = None
 
-# Importar desde utils
-from utils.data_processor import process_trading_data
-
-# Función para guardar datos procesados en caché
-def save_processed_data(data):
-    """Guarda los datos procesados en un archivo de caché usando pickle"""
-    os.makedirs(os.path.dirname(DATA_CACHE_PATH), exist_ok=True)
-    with open(DATA_CACHE_PATH, 'wb') as f:
-        pickle.dump(data, f)
-    print(f"[INFO] Datos guardados en caché: {DATA_CACHE_PATH}")
-
-# Función para cargar datos procesados desde caché
-def load_processed_data():
-    """Carga los datos procesados desde un archivo de caché"""
-    if os.path.exists(DATA_CACHE_PATH):
-        try:
-            with open(DATA_CACHE_PATH, 'rb') as f:
-                data = pickle.load(f)
-            print(f"[INFO] Datos cargados desde caché: {DATA_CACHE_PATH}")
-            return data
-        except Exception as e:
-            print(f"[ERROR] No se pudieron cargar datos desde caché: {e}")
-    return None
+# Inicializar la integración con la base de datos
+init_app(app)
 
 # Filtros personalizados para plantillas
 @app.template_filter('format_number')
@@ -77,7 +77,6 @@ def format_percent(value):
         return f"{value:.2f}%"
     except (ValueError, TypeError):
         return value
-
 @app.route('/')
 def index():
     """Página principal con formulario para cargar archivos o usar predeterminados"""
@@ -87,7 +86,18 @@ def index():
         os.path.exists(DEFAULT_TICKETS_PATH)
     )
     
-    return render_template('index.html', has_default_files=has_default_files)
+    # Obtener estadísticas de la base de datos
+    db_stats = summarize_database_stats()
+    
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
+    
+    return render_template(
+        'index.html', 
+        has_default_files=has_default_files,
+        db_stats=db_stats,
+        date_range=date_range
+    )
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -100,14 +110,22 @@ def upload_files():
             os.path.exists(DEFAULT_TRADES_PATH) and 
             os.path.exists(DEFAULT_TICKETS_PATH)):
             
-            processed_data = process_trading_data(
+            # Importar a la base de datos y obtener datos procesados
+            import_summary = import_data_to_db(
                 DEFAULT_ORDERS_PATH, 
                 DEFAULT_TRADES_PATH, 
-                DEFAULT_TICKETS_PATH
+                DEFAULT_TICKETS_PATH,
+                app
             )
             
-            # Guardar en caché para futuras sesiones
-            save_processed_data(processed_data)
+            # Verificar resultado de la importación
+            if import_summary['status'] == 'success':
+                flash(f"Datos importados correctamente: {import_summary['orders_imported']} órdenes, {import_summary['trades_imported']} trades", 'success')
+            else:
+                flash(f"Importación parcial: {import_summary['status']}", 'warning')
+            
+            # Obtener datos procesados desde la base de datos
+            processed_data = get_all_processed_data()
             
             return redirect(url_for('dashboard'))
         else:
@@ -138,11 +156,22 @@ def upload_files():
         trades_file.save(trades_path)
         tickets_file.save(tickets_path)
         
-        # Procesar los datos
-        processed_data = process_trading_data(orders_path, trades_path, tickets_path)
+        # Importar a la base de datos
+        import_summary = import_data_to_db(
+            orders_path, 
+            trades_path, 
+            tickets_path,
+            app
+        )
         
-        # Guardar en caché para futuras sesiones
-        save_processed_data(processed_data)
+        # Verificar resultado de la importación
+        if import_summary['status'] == 'success':
+            flash(f"Datos importados correctamente: {import_summary['orders_imported']} órdenes, {import_summary['trades_imported']} trades", 'success')
+        else:
+            flash(f"Importación parcial: {import_summary['status']}", 'warning')
+        
+        # Obtener datos procesados desde la base de datos
+        processed_data = get_all_processed_data()
         
         # Copiar archivos a la carpeta 'data' para uso futuro
         import shutil
@@ -157,11 +186,23 @@ def dashboard():
     """Muestra el dashboard con resumen de métricas"""
     global processed_data
     
-    # Si no hay datos en memoria, intentar cargar desde caché
+    # Si no hay datos en memoria, intentar cargar desde la base de datos
     if processed_data is None:
-        processed_data = load_processed_data()
+        # Obtener fecha predeterminada (últimos 30 días)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        # Obtener parámetros de fecha desde la URL
+        if request.args.get('start_date') and request.args.get('end_date'):
+            try:
+                start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+            except ValueError:
+                flash('Formato de fecha inválido. Usando rango predeterminado.', 'warning')
+        
+        processed_data = get_all_processed_data(start_date, end_date)
     
-    if processed_data is None:
+    if not processed_data or not processed_data.get('metrics'):
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
@@ -172,6 +213,9 @@ def dashboard():
     symbols_data = json.dumps(processed_data['symbol_performance'][:5])  # Top 5 símbolos
     buysell_data = json.dumps(processed_data['buysell_performance'])
     
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
+    
     return render_template(
         'dashboard.html', 
         metrics=metrics, 
@@ -179,7 +223,8 @@ def dashboard():
         symbols_data=symbols_data,
         buysell_data=buysell_data,
         processed_data=processed_data,  # Añadir variable para comprobar datos en plantillas
-        sidebar_items=AddonRegistry.get_sidebar_items()  # Añadir explícitamente items de barra lateral
+        sidebar_items=AddonRegistry.get_sidebar_items(),  # Añadir explícitamente items de barra lateral
+        date_range=date_range
     )
 
 @app.route('/symbols')
@@ -187,23 +232,44 @@ def symbols():
     """Análisis por símbolo"""
     global processed_data
     
-    # Si no hay datos en memoria, intentar cargar desde caché
+    # Si no hay datos en memoria, intentar cargar desde la base de datos
     if processed_data is None:
-        processed_data = load_processed_data()
+        # Obtener fecha predeterminada (últimos 30 días)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        # Obtener parámetros de fecha desde la URL
+        if request.args.get('start_date') and request.args.get('end_date'):
+            try:
+                start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+            except ValueError:
+                flash('Formato de fecha inválido. Usando rango predeterminado.', 'warning')
+        
+        # Obtener rendimiento por símbolo desde la base de datos
+        symbols_data = get_symbol_performance(start_date, end_date)
+        symbols_json = json.dumps(symbols_data)
+        
+        # Obtener datos procesados completos si no están en memoria
+        processed_data = get_all_processed_data(start_date, end_date)
+    else:
+        symbols_data = processed_data['symbol_performance']
+        symbols_json = json.dumps(symbols_data)
     
-    if processed_data is None:
+    if not symbols_data:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
-    symbols_data = processed_data['symbol_performance']
-    symbols_json = json.dumps(symbols_data)
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
     
     return render_template(
         'symbols.html', 
         symbols=symbols_data, 
         symbols_json=symbols_json,
         processed_data=processed_data,
-        sidebar_items=AddonRegistry.get_sidebar_items()
+        sidebar_items=AddonRegistry.get_sidebar_items(),
+        date_range=date_range
     )
 
 @app.route('/time')
@@ -211,16 +277,33 @@ def time_analysis():
     """Análisis por hora del día"""
     global processed_data
     
-    # Si no hay datos en memoria, intentar cargar desde caché
+    # Si no hay datos en memoria, intentar cargar desde la base de datos
     if processed_data is None:
-        processed_data = load_processed_data()
+        # Obtener fecha predeterminada (últimos 30 días)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        # Obtener parámetros de fecha desde la URL
+        if request.args.get('start_date') and request.args.get('end_date'):
+            try:
+                start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+            except ValueError:
+                flash('Formato de fecha inválido. Usando rango predeterminado.', 'warning')
+        
+        # Obtener rendimiento por hora desde la base de datos
+        time_data = get_time_performance(start_date, end_date)
+        time_json = json.dumps(time_data)
+        
+        # Obtener datos procesados completos si no están en memoria
+        processed_data = get_all_processed_data(start_date, end_date)
+    else:
+        time_data = processed_data['time_performance']
+        time_json = json.dumps(time_data)
     
-    if processed_data is None:
+    if not time_data:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
-    
-    time_data = processed_data['time_performance']
-    time_json = json.dumps(time_data)
     
     # Encontrar las mejores y peores horas
     if time_data:
@@ -230,6 +313,9 @@ def time_analysis():
     else:
         best_hour = worst_hour = most_active = None
     
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
+    
     return render_template(
         'time_analysis.html', 
         time_data=time_data, 
@@ -238,7 +324,8 @@ def time_analysis():
         worst_hour=worst_hour,
         most_active=most_active,
         processed_data=processed_data,
-        sidebar_items=AddonRegistry.get_sidebar_items()
+        sidebar_items=AddonRegistry.get_sidebar_items(),
+        date_range=date_range
     )
 
 @app.route('/buysell')
@@ -246,48 +333,96 @@ def buysell():
     """Análisis por tipo (compra/venta)"""
     global processed_data
     
-    # Si no hay datos en memoria, intentar cargar desde caché
+    # Si no hay datos en memoria, intentar cargar desde la base de datos
     if processed_data is None:
-        processed_data = load_processed_data()
+        # Obtener fecha predeterminada (últimos 30 días)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        # Obtener parámetros de fecha desde la URL
+        if request.args.get('start_date') and request.args.get('end_date'):
+            try:
+                start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+                end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+            except ValueError:
+                flash('Formato de fecha inválido. Usando rango predeterminado.', 'warning')
+        
+        # Obtener rendimiento por tipo desde la base de datos
+        buysell_data = get_buysell_performance(start_date, end_date)
+        buysell_json = json.dumps(buysell_data)
+        
+        # Obtener datos procesados completos si no están en memoria
+        processed_data = get_all_processed_data(start_date, end_date)
+    else:
+        buysell_data = processed_data['buysell_performance']
+        buysell_json = json.dumps(buysell_data)
     
-    if processed_data is None:
+    if not buysell_data:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('index'))
     
-    buysell_data = processed_data['buysell_performance']
-    buysell_json = json.dumps(buysell_data)
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
     
     return render_template(
         'buysell.html', 
         buysell=buysell_data, 
         buysell_json=buysell_json,
         processed_data=processed_data,
-        sidebar_items=AddonRegistry.get_sidebar_items()
+        sidebar_items=AddonRegistry.get_sidebar_items(),
+        date_range=date_range
     )
+
 
 @app.route('/trades')
 def trades():
     """Lista detallada de operaciones"""
     global processed_data
     
-    # Si no hay datos en memoria, intentar cargar desde caché
-    if processed_data is None:
-        processed_data = load_processed_data()
+    # Obtener fecha predeterminada (últimos 30 días)
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=30)
     
-    if processed_data is None:
-        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
+    # Obtener parámetros de fecha desde la URL
+    if request.args.get('start_date') and request.args.get('end_date'):
+        try:
+            start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+            end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+        except ValueError:
+            flash('Formato de fecha inválido. Usando rango predeterminado.', 'warning')
     
-    processed_orders = processed_data['processed_orders']
+    # Obtener parámetros de filtrado adicionales
+    symbol = request.args.get('symbol')
+    
+    # Construir lista de símbolos para filtrar
+    symbols = [symbol] if symbol else None
+    
+    # Obtener órdenes procesadas desde la base de datos (limitadas a 1000 para rendimiento)
+    processed_orders = get_processed_orders_from_db(start_date, end_date, symbols, limit=1000)
     
     # Ordenar por fecha (más reciente primero)
     sorted_orders = sorted(processed_orders, key=lambda x: x.get('time', ''), reverse=True)
+    
+    # Obtener lista de símbolos disponibles para el filtro
+    available_symbols = get_available_symbols(start_date, end_date)
+    
+    # Obtener rango de fechas disponibles
+    date_range = get_available_date_range()
+    
+    # Si processed_data no está en memoria, inicializarlo con datos básicos
+    if processed_data is None:
+        processed_data = get_all_processed_data(start_date, end_date)
     
     return render_template(
         'trades.html', 
         orders=sorted_orders,
         processed_data=processed_data,
-        sidebar_items=AddonRegistry.get_sidebar_items()
+        sidebar_items=AddonRegistry.get_sidebar_items(),
+        available_symbols=available_symbols,
+        selected_symbol=symbol,
+        start_date=start_date,
+        end_date=end_date,
+        date_range=date_range
     )
 
 @app.route('/manage_addons')
@@ -307,6 +442,15 @@ def manage_addons():
     for file in addon_files:
         name = file[:-3]  # Quitar .py
         addon_status[name] = name in registered_addons
+    
+    # Obtener la variable processed_data para la navegación
+    global processed_data
+    if processed_data is None:
+        # Intentar cargar datos básicos para navegación
+        try:
+            processed_data = get_all_processed_data()
+        except:
+            pass  # Ignorar errores, no necesitamos datos completos aquí
     
     return render_template(
         'manage_addons.html',
@@ -387,6 +531,100 @@ def reload_addons():
         flash(f'Error al recargar addons: {str(e)}', 'error')
     
     return redirect(url_for('manage_addons'))
+    
+@app.route('/trading_alerts')
+def trading_alerts():
+    """Vista principal de alertas de trading"""
+    # Cargar variables globales
+    global processed_data
+    
+    # Obtener alertas activas
+    active_alerts = get_trading_alerts(active_only=True)
+    
+    # Si no hay datos procesados, intentar cargarlos
+    if processed_data is None:
+        processed_data = get_all_processed_data()
+    
+    # Si hay órdenes, verificar alertas
+    triggered_alerts = []
+    if processed_data and processed_data.get('processed_orders'):
+        # Usar datos de la base de datos para verificar alertas
+        triggered_alerts = check_trading_alerts(processed_data['processed_orders'])
+    else:
+        # Obtener alertas disparadas recientes de la base de datos
+        triggered_alerts = get_triggered_alerts()
+    
+    return render_template(
+        'trading_alerts.html',
+        active_alerts=active_alerts,
+        triggered_alerts=triggered_alerts,
+        processed_data=processed_data,
+        sidebar_items=AddonRegistry.get_sidebar_items()
+    )
+
+@app.route('/create_alert', methods=['GET', 'POST'])
+def create_alert():
+    """Vista para crear nuevas alertas"""
+    global processed_data
+    
+    # Si hay una petición POST, procesar el formulario
+    if request.method == 'POST':
+        # Recoger datos del formulario
+        alert_name = request.form.get('name')
+        symbols = request.form.getlist('symbol')
+        sides = request.form.getlist('side')
+        min_quantity = float(request.form.get('min_quantity', 0) or 0)
+        min_price = float(request.form.get('min_price', 0) or 0)
+        max_price = float(request.form.get('max_price', 0) or float('inf'))
+        
+        # Construir condiciones
+        conditions = {}
+        if symbols:
+            conditions['symbol'] = symbols
+        if sides:
+            conditions['side'] = sides
+        if min_quantity > 0:
+            conditions['min_quantity'] = min_quantity
+        if min_price > 0 or max_price < float('inf'):
+            conditions['price_range'] = [min_price, max_price]
+        
+        # Validar datos
+        if not alert_name:
+            flash('El nombre de la alerta es obligatorio', 'error')
+            return redirect(url_for('create_alert'))
+        
+        if not symbols:
+            flash('Debe seleccionar al menos un símbolo', 'error')
+            return redirect(url_for('create_alert'))
+        
+        # Crear alerta
+        alert_id = add_trading_alert(
+            name=alert_name,
+            conditions=conditions,
+            description=f"Alerta para {', '.join(symbols)} con condiciones específicas"
+        )
+        
+        if alert_id:
+            flash(f'Alerta "{alert_name}" creada exitosamente', 'success')
+            return redirect(url_for('trading_alerts'))
+        else:
+            flash('Error al crear la alerta', 'error')
+            return redirect(url_for('create_alert'))
+    
+    # Petición GET - mostrar formulario
+    # Si no hay datos procesados, intentar cargarlos
+    if processed_data is None:
+        processed_data = get_all_processed_data()
+    
+    # Obtener lista de símbolos para el formulario
+    available_symbols = get_available_symbols()
+    
+    return render_template(
+        'create_alert.html',
+        symbols=available_symbols,
+        processed_data=processed_data,
+        sidebar_items=AddonRegistry.get_sidebar_items()
+    )
 
 @app.route('/disable_alert', methods=['POST'])
 def disable_alert():
@@ -397,30 +635,11 @@ def disable_alert():
     
     alert_id = data['alert_id']
     
-    # Buscar el addon de alertas
-    from importlib import import_module
-    try:
-        # Intentar obtener el addon de alertas
-        addon_module = import_module('addons.trading_alert_addon')
-        if hasattr(addon_module, 'alert_system') and hasattr(addon_module.alert_system, 'disable_alert'):
-            success = addon_module.alert_system.disable_alert(alert_id)
-            return jsonify({'success': success})
-    except (ImportError, AttributeError) as e:
-        print(f"Error al acceder al sistema de alertas: {e}")
+    # Desactivar alerta
+    success = disable_trading_alert(alert_id)
     
-    return jsonify({'success': False, 'message': 'Sistema de alertas no disponible'})
-
-@app.route('/create_alert', methods=['GET', 'POST'])
-def create_alert():
-    """Vista para crear nuevas alertas"""
-    # Importar dinámicamente el módulo del addon de alertas
-    try:
-        from addons.trading_alert_addon import create_alert_view
-        return create_alert_view()
-    except ImportError:
-        flash('El addon de alertas no está disponible', 'error')
-        return redirect(url_for('index'))
-
+    return jsonify({'success': success})
+    
 @app.route('/debug_routes')
 def debug_routes():
     """Muestra todas las rutas registradas para depuración"""
@@ -432,13 +651,107 @@ def debug_routes():
             'route': str(rule)
         })
     
+    # Obtener estadísticas de la base de datos
+    db_stats = summarize_database_stats()
+    
+    # Obtener la variable processed_data para la navegación
+    global processed_data
+    if processed_data is None:
+        try:
+            processed_data = get_all_processed_data()
+        except:
+            pass  # Ignorar errores, no necesitamos datos completos aquí
+    
     return render_template(
         'debug_routes.html', 
         routes=sorted(routes, key=lambda x: x['route']),
         processed_data=processed_data,
-        sidebar_items=AddonRegistry.get_sidebar_items()
+        sidebar_items=AddonRegistry.get_sidebar_items(),
+        db_stats=db_stats
     )
 
+@app.route('/api/symbols', methods=['GET'])
+def api_symbols():
+    """API para obtener símbolos disponibles"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Convertir fechas si se proporcionan
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+    
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = None
+    
+    # Obtener símbolos
+    symbols = get_available_symbols(start_date, end_date)
+    
+    return jsonify({
+        'symbols': symbols,
+        'count': len(symbols)
+    })
+
+@app.route('/api/date_range', methods=['GET'])
+def api_date_range():
+    """API para obtener el rango de fechas disponible"""
+    start_date, end_date = get_available_date_range()
+    
+    return jsonify({
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else None,
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else None
+    })
+
+@app.route('/api/filter_data', methods=['POST'])
+def api_filter_data():
+    """API para filtrar datos según rango de fechas, símbolos, etc."""
+    # Obtener parámetros del filtro
+    data = request.json or {}
+    
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    symbols = data.get('symbols')
+    
+    # Convertir fechas si se proporcionan
+    if start_date:
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+    
+    if end_date:
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = None
+    
+    # Obtener datos filtrados
+    filtered_data = get_all_processed_data(start_date, end_date)
+    
+    # Aplicar filtro de símbolos si se proporciona
+    if symbols and filtered_data and 'processed_orders' in filtered_data:
+        filtered_data['processed_orders'] = [
+            order for order in filtered_data['processed_orders']
+            if order['symb'] in symbols
+        ]
+    
+    # Devolver JSON con datos filtrados
+    return jsonify({
+        'success': True,
+        'data': {
+            'metrics': filtered_data.get('metrics'),
+            'symbol_performance': filtered_data.get('symbol_performance'),
+            'time_performance': filtered_data.get('time_performance'),
+            'buysell_performance': filtered_data.get('buysell_performance'),
+            'order_count': len(filtered_data.get('processed_orders', [])),
+        }
+    })
+    
 if __name__ == '__main__':
     # Cargar los addons
     load_addons_from_directory()
@@ -446,25 +759,14 @@ if __name__ == '__main__':
     # Inicializar el sistema de addons
     AddonRegistry.initialize(app)
     
-    # Intentar cargar desde caché primero
-    processed_data = load_processed_data()
-    
-    # Si no hay datos en caché, intentar cargar desde archivos
-    if processed_data is None and (os.path.exists(DEFAULT_ORDERS_PATH) and 
-        os.path.exists(DEFAULT_TRADES_PATH) and 
-        os.path.exists(DEFAULT_TICKETS_PATH)):
-        
-        try:
-            processed_data = process_trading_data(
-                DEFAULT_ORDERS_PATH, 
-                DEFAULT_TRADES_PATH, 
-                DEFAULT_TICKETS_PATH
-            )
-            # Guardar en caché para futuros reinicios
-            save_processed_data(processed_data)
-            print(f"[INFO] Datos cargados y guardados al iniciar: {processed_data is not None}")
-        except Exception as e:
-            print(f"[ERROR] No se pudieron cargar los datos automáticamente: {e}")
+    # Intentar cargar datos desde la base de datos
+    try:
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        processed_data = get_all_processed_data(start_date, end_date)
+        app.logger.info(f"Datos cargados desde la base de datos al iniciar: {processed_data is not None}")
+    except Exception as e:
+        app.logger.error(f"No se pudieron cargar los datos automáticamente: {e}")
     
     # Iniciar la aplicación en modo debug
     app.run(host='0.0.0.0', port=5000, debug=True)
