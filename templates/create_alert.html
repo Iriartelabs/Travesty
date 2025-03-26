@@ -1,9 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}Crear Alerta - DAS Trader Analyzer{% endblock %}
+{% block title %}Crear Alerta - Trading Alerts Pro{% endblock %}
 
 {% block header %}
-<h1 class="h3 mb-4 text-gray-800">Crear Nueva Alerta de Trading</h1>
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Crear Nueva Alerta</h1>
+    <a href="{{ url_for('trading_alerts.trading_alerts') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50 mr-1"></i> Volver a Alertas
+    </a>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -11,94 +16,383 @@
     <div class="col-lg-8">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Configuración de Alerta</h6>
+                <ul class="nav nav-tabs card-header-tabs" id="alertTypeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab" aria-controls="basic" aria-selected="true">
+                            <i class="fas fa-bell mr-2"></i>Alerta Básica
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="technical-tab" data-bs-toggle="tab" data-bs-target="#technical" type="button" role="tab" aria-controls="technical" aria-selected="false">
+                            <i class="fas fa-chart-line mr-2"></i>Alerta Técnica
+                        </button>
+                    </li>
+                </ul>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('trading_alerts.create_alert') }}">
-                    <div class="form-group mb-3">
-                        <label for="name" class="form-label">Nombre de la Alerta</label>
-                        <input type="text" class="form-control" id="name" name="name" required 
-                               placeholder="Ej: Alerta AAPL Compra">
-                    </div>
+                <div class="tab-content" id="alertTypeTabContent">
+                    <!-- Alerta Básica -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel" aria-labelledby="basic-tab">
+                        <form method="POST" action="{{ url_for('trading_alerts.create_alert') }}" id="basicAlertForm">
+                            <input type="hidden" name="alert_type" value="basic">
+                            
+                            <div class="form-group mb-3">
+                                <label for="name" class="form-label">Nombre de la Alerta</label>
+                                <input type="text" class="form-control" id="name" name="name" required 
+                                       placeholder="Ej: Alerta AAPL Compra">
+                            </div>
 
-                    <div class="form-group mb-3">
-                        <label class="form-label">Símbolos</label>
-                        <div class="row">
-                            {% if symbols %}
-                                {% for symbol in symbols %}
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" 
-                                               id="symbol_{{ symbol }}" 
-                                               name="symbol" 
-                                               value="{{ symbol }}">
-                                        <label class="form-check-label" for="symbol_{{ symbol }}">
-                                            {{ symbol }}
-                                        </label>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="col-12">
-                                    <div class="alert alert-info">
-                                        No hay símbolos disponibles. Sube datos de trading para continuar.
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label">Tipo de Operación</label>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           id="side_buy" name="side" value="B">
-                                    <label class="form-check-label" for="side_buy">
-                                        Compra (Buy)
-                                    </label>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Símbolos</label>
+                                <div class="row">
+                                    {% if symbols %}
+                                        <div class="col-12 mb-2">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" id="symbolSearch" placeholder="Buscar símbolo...">
+                                                <button class="btn btn-outline-secondary" type="button" id="clearSymbolSearch">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="symbol-container" style="max-height: 200px; overflow-y: auto;">
+                                                {% for symbol in symbols %}
+                                                <div class="form-check symbol-item">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           id="symbol_{{ symbol }}" 
+                                                           name="symbol" 
+                                                           value="{{ symbol }}">
+                                                    <label class="form-check-label" for="symbol_{{ symbol }}">
+                                                        {{ symbol }}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="col-12">
+                                            <div class="alert alert-info">
+                                                No hay símbolos disponibles. Sube datos de trading para continuar.
+                                            </div>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           id="side_sell" name="side" value="S">
-                                    <label class="form-check-label" for="side_sell">
-                                        Venta (Sell)
-                                    </label>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label">Tipo de Operación</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="side_buy" name="side" value="B">
+                                            <label class="form-check-label" for="side_buy">
+                                                Compra (Buy)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="side_sell" name="side" value="S">
+                                            <label class="form-check-label" for="side_sell">
+                                                Venta (Sell)
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="form-group mb-3">
-                        <label for="min_quantity" class="form-label">Cantidad Mínima</label>
-                        <input type="number" class="form-control" id="min_quantity" 
-                               name="min_quantity" min="0" step="1" 
-                               placeholder="Cantidad mínima de acciones">
-                    </div>
+                            <div class="form-group mb-3">
+                                <label for="min_quantity" class="form-label">Cantidad Mínima</label>
+                                <input type="number" class="form-control" id="min_quantity" 
+                                       name="min_quantity" min="0" step="1" 
+                                       placeholder="Cantidad mínima de acciones">
+                            </div>
 
-                    <div class="row">
-                        <div class="col-md-6 form-group mb-3">
-                            <label for="min_price" class="form-label">Precio Mínimo</label>
-                            <input type="number" class="form-control" id="min_price" 
-                                   name="min_price" min="0" step="0.01" 
-                                   placeholder="Precio mínimo">
-                        </div>
-                        <div class="col-md-6 form-group mb-3">
-                            <label for="max_price" class="form-label">Precio Máximo</label>
-                            <input type="number" class="form-control" id="max_price" 
-                                   name="max_price" min="0" step="0.01" 
-                                   placeholder="Precio máximo">
-                        </div>
-                    </div>
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="min_price" class="form-label">Precio Mínimo</label>
+                                    <input type="number" class="form-control" id="min_price" 
+                                           name="min_price" min="0" step="0.01" 
+                                           placeholder="Precio mínimo">
+                                </div>
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="max_price" class="form-label">Precio Máximo</label>
+                                    <input type="number" class="form-control" id="max_price" 
+                                           name="max_price" min="0" step="0.01" 
+                                           placeholder="Precio máximo">
+                                </div>
+                            </div>
 
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plus fa-sm text-white-50 mr-2"></i>
-                        Crear Alerta
-                    </button>
-                </form>
+                            <div class="form-group mb-3">
+                                <label class="form-label">Canales de Notificación</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="notification_web" name="notification_channels" value="web" checked>
+                                            <label class="form-check-label" for="notification_web">
+                                                <i class="fas fa-desktop mr-1"></i> Web
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="notification_email" name="notification_channels" value="email"
+                                                   {% if not notification_settings.email_enabled %}disabled{% endif %}>
+                                            <label class="form-check-label {% if not notification_settings.email_enabled %}text-muted{% endif %}" for="notification_email">
+                                                <i class="fas fa-envelope mr-1"></i> Email
+                                            </label>
+                                            {% if not notification_settings.email_enabled %}
+                                            <small class="d-block text-muted">Configurar en Ajustes</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="notification_telegram" name="notification_channels" value="telegram"
+                                                   {% if not notification_settings.telegram_enabled %}disabled{% endif %}>
+                                            <label class="form-check-label {% if not notification_settings.telegram_enabled %}text-muted{% endif %}" for="notification_telegram">
+                                                <i class="fab fa-telegram-plane mr-1"></i> Telegram
+                                            </label>
+                                            {% if not notification_settings.telegram_enabled %}
+                                            <small class="d-block text-muted">Configurar en Ajustes</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus fa-sm text-white-50 mr-2"></i>
+                                Crear Alerta
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Alerta Técnica -->
+                    <div class="tab-pane fade" id="technical" role="tabpanel" aria-labelledby="technical-tab">
+                        <form method="POST" action="{{ url_for('trading_alerts.create_alert') }}" id="technicalAlertForm">
+                            <input type="hidden" name="alert_type" value="technical">
+                            
+                            <div class="form-group mb-3">
+                                <label for="tech_name" class="form-label">Nombre de la Alerta</label>
+                                <input type="text" class="form-control" id="tech_name" name="name" required 
+                                       placeholder="Ej: Cruce SMA AAPL">
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="indicator_symbol" class="form-label">Símbolo</label>
+                                <select class="form-select" id="indicator_symbol" name="indicator_symbol" required>
+                                    <option value="" selected disabled>Selecciona un símbolo</option>
+                                    {% for symbol in symbols %}
+                                    <option value="{{ symbol }}">{{ symbol }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label for="indicator_type" class="form-label">Tipo de Indicador</label>
+                                <select class="form-select" id="indicator_type" name="indicator_type" required>
+                                    <option value="" selected disabled>Selecciona un indicador</option>
+                                    <option value="sma_crossover">Cruce de Medias Móviles (SMA)</option>
+                                    <option value="rsi">Índice de Fuerza Relativa (RSI)</option>
+                                    <option value="macd">MACD</option>
+                                    <option value="pattern">Patrón de Precio</option>
+                                </select>
+                            </div>
+
+                            <!-- Parámetros específicos para cada indicador -->
+                            <div id="indicatorParams">
+                                <!-- SMA Crossover Parameters -->
+                                <div class="indicator-params" id="sma_crossover_params" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6 form-group mb-3">
+                                            <label for="short_period" class="form-label">SMA Corto</label>
+                                            <input type="number" class="form-control" id="short_period" 
+                                                   name="short_period" min="1" step="1" value="20">
+                                        </div>
+                                        <div class="col-md-6 form-group mb-3">
+                                            <label for="long_period" class="form-label">SMA Largo</label>
+                                            <input type="number" class="form-control" id="long_period" 
+                                                   name="long_period" min="1" step="1" value="50">
+                                        </div>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Dirección del Cruce</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="crossover_up" name="crossover_direction" value="up" checked>
+                                            <label class="form-check-label" for="crossover_up">
+                                                <i class="fas fa-arrow-up text-success mr-1"></i> Cruce hacia arriba (SMA corto cruza por encima del SMA largo)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="crossover_down" name="crossover_direction" value="down">
+                                            <label class="form-check-label" for="crossover_down">
+                                                <i class="fas fa-arrow-down text-danger mr-1"></i> Cruce hacia abajo (SMA corto cruza por debajo del SMA largo)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RSI Parameters -->
+                                <div class="indicator-params" id="rsi_params" style="display: none;">
+                                    <div class="form-group mb-3">
+                                        <label for="rsi_period" class="form-label">Período RSI</label>
+                                        <input type="number" class="form-control" id="rsi_period" 
+                                               name="rsi_period" min="1" step="1" value="14">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Condición</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="rsi_overbought" name="rsi_condition" value="overbought" checked>
+                                            <label class="form-check-label" for="rsi_overbought">
+                                                <i class="fas fa-exclamation-circle text-danger mr-1"></i> Sobrecompra
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="rsi_oversold" name="rsi_condition" value="oversold">
+                                            <label class="form-check-label" for="rsi_oversold">
+                                                <i class="fas fa-exclamation-circle text-success mr-1"></i> Sobreventa
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 form-group mb-3">
+                                            <label for="overbought" class="form-label">Nivel de Sobrecompra</label>
+                                            <input type="number" class="form-control" id="overbought" 
+                                                   name="overbought" min="50" max="100" step="1" value="70">
+                                        </div>
+                                        <div class="col-md-6 form-group mb-3">
+                                            <label for="oversold" class="form-label">Nivel de Sobreventa</label>
+                                            <input type="number" class="form-control" id="oversold" 
+                                                   name="oversold" min="0" max="50" step="1" value="30">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MACD Parameters -->
+                                <div class="indicator-params" id="macd_params" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-4 form-group mb-3">
+                                            <label for="fast_period" class="form-label">Período Rápido</label>
+                                            <input type="number" class="form-control" id="fast_period" 
+                                                   name="fast_period" min="1" step="1" value="12">
+                                        </div>
+                                        <div class="col-md-4 form-group mb-3">
+                                            <label for="slow_period" class="form-label">Período Lento</label>
+                                            <input type="number" class="form-control" id="slow_period" 
+                                                   name="slow_period" min="1" step="1" value="26">
+                                        </div>
+                                        <div class="col-md-4 form-group mb-3">
+                                            <label for="signal_period" class="form-label">Período Señal</label>
+                                            <input type="number" class="form-control" id="signal_period" 
+                                                   name="signal_period" min="1" step="1" value="9">
+                                        </div>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Señal</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="macd_buy" name="macd_signal" value="buy" checked>
+                                            <label class="form-check-label" for="macd_buy">
+                                                <i class="fas fa-arrow-up text-success mr-1"></i> Señal de Compra (MACD cruza por encima de la línea de señal)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="macd_sell" name="macd_signal" value="sell">
+                                            <label class="form-check-label" for="macd_sell">
+                                                <i class="fas fa-arrow-down text-danger mr-1"></i> Señal de Venta (MACD cruza por debajo de la línea de señal)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Price Pattern Parameters -->
+                                <div class="indicator-params" id="pattern_params" style="display: none;">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Tipo de Patrón</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="pattern_double_top" name="pattern_type" value="double_top" checked>
+                                            <label class="form-check-label" for="pattern_double_top">
+                                                <i class="fas fa-mountain mr-1"></i> Doble Techo
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="pattern_double_bottom" name="pattern_type" value="double_bottom">
+                                            <label class="form-check-label" for="pattern_double_bottom">
+                                                <i class="fas fa-valley mr-1"></i> Doble Suelo
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   id="pattern_head_shoulders" name="pattern_type" value="head_and_shoulders">
+                                            <label class="form-check-label" for="pattern_head_shoulders">
+                                                <i class="fas fa-sort-amount-down mr-1"></i> Cabeza y Hombros
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                <label class="form-label">Canales de Notificación</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="tech_notification_web" name="notification_channels" value="web" checked>
+                                            <label class="form-check-label" for="tech_notification_web">
+                                                <i class="fas fa-desktop mr-1"></i> Web
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="tech_notification_email" name="notification_channels" value="email"
+                                                   {% if not notification_settings.email_enabled %}disabled{% endif %}>
+                                            <label class="form-check-label {% if not notification_settings.email_enabled %}text-muted{% endif %}" for="tech_notification_email">
+                                                <i class="fas fa-envelope mr-1"></i> Email
+                                            </label>
+                                            {% if not notification_settings.email_enabled %}
+                                            <small class="d-block text-muted">Configurar en Ajustes</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="tech_notification_telegram" name="notification_channels" value="telegram"
+                                                   {% if not notification_settings.telegram_enabled %}disabled{% endif %}>
+                                            <label class="form-check-label {% if not notification_settings.telegram_enabled %}text-muted{% endif %}" for="tech_notification_telegram">
+                                                <i class="fab fa-telegram-plane mr-1"></i> Telegram
+                                            </label>
+                                            {% if not notification_settings.telegram_enabled %}
+                                            <small class="d-block text-muted">Configurar en Ajustes</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus fa-sm text-white-50 mr-2"></i>
+                                Crear Alerta Técnica
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -106,19 +400,58 @@
     <div class="col-lg-4">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Ayuda</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Guía de Alertas</h6>
             </div>
             <div class="card-body">
-                <p>Crea una alerta personalizada para tus operaciones:</p>
-                <ul>
-                    <li>Selecciona los símbolos que te interesan</li>
-                    <li>Elige el tipo de operación (compra o venta)</li>
-                    <li>Configura cantidad y rango de precio</li>
-                </ul>
-                <p class="text-muted small">
-                    <i class="fas fa-info-circle"></i> 
-                    Las alertas se disparan cuando se cumplen tus condiciones específicas.
-                </p>
+                <div class="nav flex-column nav-pills mb-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" id="v-pills-basic-tab" data-bs-toggle="pill" data-bs-target="#v-pills-basic" type="button" role="tab" aria-controls="v-pills-basic" aria-selected="true">Alertas Básicas</button>
+                    <button class="nav-link" id="v-pills-technical-tab" data-bs-toggle="pill" data-bs-target="#v-pills-technical" type="button" role="tab" aria-controls="v-pills-technical" aria-selected="false">Alertas Técnicas</button>
+                    <button class="nav-link" id="v-pills-notify-tab" data-bs-toggle="pill" data-bs-target="#v-pills-notify" type="button" role="tab" aria-controls="v-pills-notify" aria-selected="false">Notificaciones</button>
+                </div>
+                
+                <div class="tab-content" id="v-pills-tabContent">
+                    <div class="tab-pane fade show active" id="v-pills-basic" role="tabpanel" aria-labelledby="v-pills-basic-tab">
+                        <h5 class="text-primary">Alertas Básicas</h5>
+                        <p>Estas alertas monitorean tus operaciones según condiciones específicas:</p>
+                        <ul>
+                            <li><strong>Símbolos:</strong> Selecciona uno o varios activos</li>
+                            <li><strong>Tipo de operación:</strong> Compra, venta o ambas</li>
+                            <li><strong>Cantidad:</strong> Establece un mínimo para detectar operaciones grandes</li>
+                            <li><strong>Rango de precio:</strong> Filtra por precio de entrada</li>
+                        </ul>
+                        <p class="text-muted small">
+                            <i class="fas fa-info-circle"></i> 
+                            Estas alertas se verificarán cada vez que haya nuevas operaciones.
+                        </p>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="v-pills-technical" role="tabpanel" aria-labelledby="v-pills-technical-tab">
+                        <h5 class="text-primary">Alertas Técnicas</h5>
+                        <p>Estas alertas utilizan indicadores técnicos para detectar señales:</p>
+                        <ul>
+                            <li><strong>SMA Crossover:</strong> Detecta cruces de medias móviles</li>
+                            <li><strong>RSI:</strong> Alerta sobre condiciones de sobrecompra o sobreventa</li>
+                            <li><strong>MACD:</strong> Señales de compra/venta basadas en MACD</li>
+                            <li><strong>Patrones:</strong> Detecta patrones gráficos como doble techo/suelo</li>
+                        </ul>
+                        <div class="alert alert-info p-2 small">
+                            <i class="fas fa-lightbulb"></i> Para probar estas alertas, puedes usar la herramienta de <a href="{{ url_for('trading_alerts.backtest') }}">Backtest</a>.
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="v-pills-notify" role="tabpanel" aria-labelledby="v-pills-notify-tab">
+                        <h5 class="text-primary">Notificaciones</h5>
+                        <p>Puedes recibir alertas a través de:</p>
+                        <ul>
+                            <li><strong>Web:</strong> Visible en el panel de alertas (siempre activo)</li>
+                            <li><strong>Email:</strong> Notificaciones por correo electrónico</li>
+                            <li><strong>Telegram:</strong> Mensajes directos a tu chat de Telegram</li>
+                        </ul>
+                        <div class="alert alert-warning p-2 small">
+                            <i class="fas fa-cog"></i> Para activar notificaciones por Email o Telegram, configúralas en la <a href="{{ url_for('trading_alerts.settings') }}">página de Configuración</a>.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -128,25 +461,171 @@
 {% block scripts %}
 <script>
     $(document).ready(function() {
-        // Validaciones adicionales del formulario
-        $('form').on('submit', function(e) {
-            // Validar que al menos un símbolo esté seleccionado
-            const selectedSymbols = $('input[name="symbol"]:checked').length;
-            if (selectedSymbols === 0) {
-                alert('Debe seleccionar al menos un símbolo');
-                e.preventDefault();
-                return;
-            }
-
-            // Validar rango de precios
-            const minPrice = parseFloat($('#min_price').val()) || 0;
-            const maxPrice = parseFloat($('#max_price').val()) || Infinity;
+        // Inicializar URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const alertType = urlParams.get('type');
+        
+        // Si hay un tipo de alerta especificado en la URL, seleccionar la pestaña correspondiente
+        if (alertType === 'technical') {
+            $('#technical-tab').tab('show');
+        }
+        
+        // Activar tooltip para campos desactivados
+        $('[data-toggle="tooltip"]').tooltip();
+        
+        // Búsqueda de símbolos
+        $('#symbolSearch').on('input', function() {
+            const searchTerm = $(this).val().toLowerCase();
             
-            if (minPrice > maxPrice && maxPrice !== Infinity) {
-                alert('El precio mínimo no puede ser mayor que el precio máximo');
-                e.preventDefault();
-                return;
+            $('.symbol-item').each(function() {
+                const symbolText = $(this).text().toLowerCase();
+                if (symbolText.includes(searchTerm)) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+        
+        // Limpiar búsqueda
+        $('#clearSymbolSearch').on('click', function() {
+            $('#symbolSearch').val('');
+            $('.symbol-item').show();
+        });
+        
+        // Cambiar parámetros según indicador seleccionado
+        $('#indicator_type').on('change', function() {
+            const indicatorType = $(this).val();
+            
+            // Ocultar todos los parámetros
+            $('.indicator-params').hide();
+            
+            // Mostrar parámetros específicos
+            if (indicatorType) {
+                $(`#${indicatorType}_params`).show();
+                
+                // Actualizar nombre de la alerta con el indicador seleccionado
+                let alertNamePrefix = '';
+                
+                switch (indicatorType) {
+                    case 'sma_crossover':
+                        alertNamePrefix = 'Cruce SMA';
+                        break;
+                    case 'rsi':
+                        alertNamePrefix = 'RSI';
+                        break;
+                    case 'macd':
+                        alertNamePrefix = 'MACD';
+                        break;
+                    case 'pattern':
+                        alertNamePrefix = 'Patrón';
+                        break;
+                }
+                
+                const symbol = $('#indicator_symbol').val() || '';
+                if (symbol && alertNamePrefix) {
+                    $('#tech_name').val(`${alertNamePrefix} ${symbol}`);
+                }
             }
+        });
+        
+        // Actualizar nombre de la alerta cuando cambia el símbolo
+        $('#indicator_symbol').on('change', function() {
+            const symbol = $(this).val();
+            const indicatorType = $('#indicator_type').val();
+            
+            if (symbol && indicatorType) {
+                let alertNamePrefix = '';
+                
+                switch (indicatorType) {
+                    case 'sma_crossover':
+                        alertNamePrefix = 'Cruce SMA';
+                        break;
+                    case 'rsi':
+                        alertNamePrefix = 'RSI';
+                        break;
+                    case 'macd':
+                        alertNamePrefix = 'MACD';
+                        break;
+                    case 'pattern':
+                        alertNamePrefix = 'Patrón';
+                        break;
+                }
+                
+                if (alertNamePrefix) {
+                    $('#tech_name').val(`${alertNamePrefix} ${symbol}`);
+                }
+            }
+        });
+        
+        // Validación del formulario de alerta básica
+        $('#basicAlertForm').on('submit', function(e) {
+            const selectedSymbols = $('input[name="symbol"]:checked').length;
+            const selectedSides = $('input[name="side"]:checked').length;
+            
+            if (selectedSymbols === 0) {
+                e.preventDefault();
+                alert('Debes seleccionar al menos un símbolo');
+                return false;
+            }
+            
+            if (selectedSides === 0) {
+                e.preventDefault();
+                alert('Debes seleccionar al menos un tipo de operación (Compra o Venta)');
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Validación del formulario de alerta técnica
+        $('#technicalAlertForm').on('submit', function(e) {
+            const indicatorType = $('#indicator_type').val();
+            const symbol = $('#indicator_symbol').val();
+            
+            if (!symbol) {
+                e.preventDefault();
+                alert('Debes seleccionar un símbolo');
+                return false;
+            }
+            
+            if (!indicatorType) {
+                e.preventDefault();
+                alert('Debes seleccionar un tipo de indicador');
+                return false;
+            }
+            
+            // Validaciones específicas por tipo de indicador
+            if (indicatorType === 'sma_crossover') {
+                const shortPeriod = parseInt($('#short_period').val());
+                const longPeriod = parseInt($('#long_period').val());
+                
+                if (shortPeriod >= longPeriod) {
+                    e.preventDefault();
+                    alert('El período SMA corto debe ser menor que el período SMA largo');
+                    return false;
+                }
+            } else if (indicatorType === 'rsi') {
+                const overbought = parseInt($('#overbought').val());
+                const oversold = parseInt($('#oversold').val());
+                
+                if (overbought <= oversold) {
+                    e.preventDefault();
+                    alert('El nivel de sobrecompra debe ser mayor que el nivel de sobreventa');
+                    return false;
+                }
+            } else if (indicatorType === 'macd') {
+                const fastPeriod = parseInt($('#fast_period').val());
+                const slowPeriod = parseInt($('#slow_period').val());
+                
+                if (fastPeriod >= slowPeriod) {
+                    e.preventDefault();
+                    alert('El período rápido debe ser menor que el período lento');
+                    return false;
+                }
+            }
+            
+            return true;
         });
     });
 </script>
