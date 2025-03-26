@@ -7,6 +7,9 @@ from flask import render_template, redirect, url_for, flash
 import json
 from collections import defaultdict
 
+from config import Config
+from services.cache_manager import load_processed_data
+
 def analyze_trader_performance(orders):
     """
     Analyze trading performance broken down by individual traders
@@ -77,32 +80,36 @@ def trader_performance_view():
     Returns:
         Rendered HTML template with trader performance data
     """
-    # Importar las variables y funciones globales desde app.py
-    from app import processed_data, load_processed_data
-    
     # Agregar mensaje de depuración
-    print(f"[DEBUG] trader_performance_view - processed_data: {processed_data is not None}")
+    print("[DEBUG] Entrando en trader_performance_view()")
     
-    # Si no hay datos en memoria, intentar cargar desde caché
-    data = processed_data
-    if data is None:
-        data = load_processed_data()
-        print(f"[DEBUG] Datos cargados desde caché en addon trader_performance: {data is not None}")
+    # Obtener datos procesados
+    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
     
-    # Si aún no hay datos, mostrar mensaje
-    if data is None:
+    print(f"[DEBUG] Processed data: {processed_data is not None}")
+    
+    if processed_data is None:
+        print("[DEBUG] No hay datos procesados")
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
+    
+    # Obtener órdenes procesadas
+    processed_orders = processed_data.get('processed_orders', [])
+    
+    print(f"[DEBUG] Número de órdenes procesadas: {len(processed_orders)}")
     
     # Analyze trader performance using the obtained data
-    trader_data = analyze_trader_performance(data['processed_orders'])
+    trader_data = analyze_trader_performance(processed_orders)
+    
+    print(f"[DEBUG] Datos de rendimiento por trader: {trader_data}")
+    
     trader_json = json.dumps(trader_data)
     
     return render_template(
         'trader_performance.html',
         trader_performance=trader_data,
         trader_json=trader_json,
-        processed_data=data  # Pasar los datos correctos a la plantilla
+        processed_data=processed_data
     )
 
 def register_addon():

@@ -7,8 +7,14 @@ from flask import render_template, redirect, url_for, flash
 import json
 from datetime import datetime
 
+from config import Config
+from services.cache_manager import load_processed_data
+
 def analyze_by_weekday(orders):
     """Analiza rendimiento por día de la semana"""
+    print("[DEBUG] Comenzando análisis por día de la semana")
+    print(f"[DEBUG] Número de órdenes: {len(orders)}")
+    
     weekdays = {}
     
     for order in orders:
@@ -17,7 +23,16 @@ def analyze_by_weekday(orders):
             continue
             
         try:
-            dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+            # Probamos diferentes formatos de fecha
+            try:
+                dt = datetime.strptime(time_str, '%m/%d/%y %H:%M:%S')
+            except ValueError:
+                try:
+                    dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    print(f"[DEBUG] No se pudo parsear la fecha: {time_str}")
+                    continue
+            
             weekday = dt.weekday()  # 0 = Lunes, 6 = Domingo
             weekday_name = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][weekday]
             
@@ -34,7 +49,7 @@ def analyze_by_weekday(orders):
             if order.get('pnl', 0) > 0:
                 weekdays[weekday_name]['winningTrades'] += 1
         except Exception as e:
-            print(f"Error procesando fecha {time_str}: {e}")
+            print(f"[DEBUG] Error procesando fecha {time_str}: {e}")
             continue
     
     # Convertir a lista
@@ -54,29 +69,37 @@ def analyze_by_weekday(orders):
         })
     
     # Ordenar por día de la semana
-    return sorted(weekday_stats, key=lambda x: x['weekdayNum'])
+    weekday_stats = sorted(weekday_stats, key=lambda x: x['weekdayNum'])
+    
+    print("[DEBUG] Estadísticas de días de la semana:")
+    for stat in weekday_stats:
+        print(f"[DEBUG] {stat}")
+    
+    return weekday_stats
 
 def weekday_analysis_view():
     """Vista para el addon de análisis por día de la semana"""
-    # Importar las variables y funciones globales desde app.py
-    from app import processed_data, load_processed_data
+    print("[DEBUG] Entrando en weekday_analysis_view()")
     
-    # Agregar mensaje de depuración
-    print(f"[DEBUG] weekday_analysis_view - processed_data: {processed_data is not None}")
+    # Obtener datos procesados usando load_processed_data
+    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
     
-    # Si no hay datos en memoria, intentar cargar desde caché
-    data = processed_data
-    if data is None:
-        data = load_processed_data()
-        print(f"[DEBUG] Datos cargados desde caché en addon weekday_analysis: {data is not None}")
+    print(f"[DEBUG] Processed data: {processed_data is not None}")
     
-    # Si aún no hay datos, mostrar mensaje
-    if data is None:
+    if processed_data is None:
+        print("[DEBUG] No hay datos procesados")
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
+    
+    # Obtener órdenes procesadas
+    processed_orders = processed_data.get('processed_orders', [])
+    
+    print(f"[DEBUG] Número de órdenes procesadas: {len(processed_orders)}")
     
     # Realizar el análisis con los datos obtenidos
-    weekday_data = analyze_by_weekday(data['processed_orders'])
+    weekday_data = analyze_by_weekday(processed_orders)
+    
+    print(f"[DEBUG] Datos de días de la semana: {weekday_data}")
     
     # Convertir a JSON para usar en gráficos
     weekday_json = json.dumps(weekday_data)
@@ -89,6 +112,10 @@ def weekday_analysis_view():
     else:
         best_day = worst_day = most_active_day = None
     
+    print(f"[DEBUG] Mejor día: {best_day}")
+    print(f"[DEBUG] Peor día: {worst_day}")
+    print(f"[DEBUG] Día más activo: {most_active_day}")
+    
     # Renderizar la plantilla
     return render_template(
         'weekday_analysis.html',
@@ -97,7 +124,7 @@ def weekday_analysis_view():
         best_day=best_day,
         worst_day=worst_day,
         most_active_day=most_active_day,
-        processed_data=data  # Pasar los datos correctos a la plantilla
+        processed_data=processed_data
     )
 
 def register_addon():

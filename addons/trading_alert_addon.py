@@ -3,9 +3,15 @@ Addon: Trading Alert Bot
 Descripción: Sistema de alertas de trading basado en condiciones personalizables
 """
 from addon_system import AddonRegistry
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 import json
 from datetime import datetime, timedelta
+
+from config import Config
+from services.cache_manager import load_processed_data
+
+# Crear un blueprint específico para las alertas
+trading_alerts_bp = Blueprint('trading_alerts', __name__)
 
 class TradingAlertSystem:
     def __init__(self):
@@ -89,7 +95,7 @@ class TradingAlertSystem:
             
             # Condiciones de hora
             if 'time_range' in conditions:
-                order_time = datetime.strptime(order['time'], '%Y-%m-%d %H:%M:%S')
+                order_time = datetime.strptime(order['time'], '%m/%d/%y %H:%M:%S')
                 start_time, end_time = conditions['time_range']
                 match = match and start_time <= order_time.time() <= end_time
             
@@ -111,6 +117,8 @@ class TradingAlertSystem:
         Desactiva una alerta específica
         
         :param alert_id: ID de la alerta a desactivar
+        
+        :return: True si la alerta fue desactivada, False en caso contrario
         """
         for alert in self.alerts:
             if alert['id'] == alert_id:
@@ -121,57 +129,61 @@ class TradingAlertSystem:
 # Instancia global del sistema de alertas
 alert_system = TradingAlertSystem()
 
-def trading_alerts_view():
+@trading_alerts_bp.route('/trading-alerts')
+def trading_alerts():
     """
     Vista principal para gestionar alertas de trading
     """
-    # Importar las variables y funciones globales desde app.py
-    from app import processed_data, load_processed_data
-    
     # Agregar mensaje de depuración
-    print(f"[DEBUG] trading_alerts_view - processed_data: {processed_data is not None}")
+    print("[DEBUG] Entrando en trading_alerts_view()")
     
-    # Si no hay datos en memoria, intentar cargar desde caché
-    data = processed_data
-    if data is None:
-        data = load_processed_data()
-        print(f"[DEBUG] Datos cargados desde caché en addon trading_alerts: {data is not None}")
+    # Obtener datos procesados
+    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
     
-    # Si aún no hay datos, mostrar mensaje
-    if data is None:
+    print(f"[DEBUG] Processed data: {processed_data is not None}")
+    
+    if processed_data is None:
+        print("[DEBUG] No hay datos procesados")
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
+    
+    # Obtener órdenes procesadas
+    processed_orders = processed_data.get('processed_orders', [])
+    
+    print(f"[DEBUG] Número de órdenes procesadas: {len(processed_orders)}")
     
     # Verificar alertas
-    triggered_alerts = alert_system.check_alerts(data['processed_orders'])
+    triggered_alerts = alert_system.check_alerts(processed_orders)
+    
+    print(f"[DEBUG] Alertas disparadas: {len(triggered_alerts)}")
     
     # Obtener alertas activas
     active_alerts = alert_system.get_active_alerts()
+    
+    print(f"[DEBUG] Alertas activas: {len(active_alerts)}")
     
     return render_template(
         'trading_alerts.html',
         triggered_alerts=triggered_alerts,
         active_alerts=active_alerts,
-        processed_data=data  # Pasar los datos correctos a la plantilla
+        processed_data=processed_data
     )
 
-def create_alert_view():
+@trading_alerts_bp.route('/create-alert', methods=['GET', 'POST'])
+def create_alert():
     """
     Vista para crear nuevas alertas
     """
-    # Importar las variables y funciones globales desde app.py
-    from app import processed_data, load_processed_data
+    # Obtener datos procesados
+    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
     
-    # Si no hay datos en memoria, intentar cargar desde caché
-    data = processed_data
-    if data is None:
-        data = load_processed_data()
-        print(f"[DEBUG] Datos cargados desde caché en create_alert_view: {data is not None}")
+    print(f"[DEBUG] Processed data: {processed_data is not None}")
     
     # Verificar si hay datos cargados
-    if data is None:
+    if processed_data is None:
+        print("[DEBUG] No hay datos procesados")
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('main.index'))
     
     if request.method == 'POST':
         # Recoger datos del formulario
@@ -201,19 +213,30 @@ def create_alert_view():
         )
         
         flash(f'Alerta "{alert_name}" creada exitosamente', 'success')
-        return redirect(url_for('trading_alerts'))
+        return redirect(url_for('trading_alerts.trading_alerts'))
     
     # Obtener símbolos únicos para mostrar en el formulario
     unique_symbols = set()
-    for order in data['processed_orders']:
+    for order in processed_data.get('processed_orders', []):
         if 'symb' in order and order['symb']:
             unique_symbols.add(order['symb'])
     
     return render_template(
         'create_alert.html',
         symbols=sorted(list(unique_symbols)),
-        processed_data=data
+        processed_data=processed_data
     )
+
+@trading_alerts_bp.route('/disable-alert', methods=['POST'])
+def disable_alert():
+    """API para desactivar una alerta"""
+    data = request.json
+    if not data or 'alert_id' not in data:
+        return jsonify({'success': False, 'message': 'Datos inválidos'})
+    
+    alert_id = data['alert_id']
+    success = alert_system.disable_alert(alert_id)
+    return jsonify({'success': success})
 
 def register_addon():
     """
@@ -223,7 +246,7 @@ def register_addon():
         'name': 'Trading Alerts',
         'description': 'Sistema de alertas de trading con condiciones personalizables',
         'route': '/trading_alerts',
-        'view_func': trading_alerts_view,
+        'view_func': trading_alerts,
         'template': 'trading_alerts.html',
         'icon': 'bell',
         'active': True,

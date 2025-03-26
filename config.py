@@ -1,60 +1,38 @@
 import os
 
 class Config:
-    """Configuración base para la aplicación"""
-    # Ruta de carpetas
-    UPLOAD_FOLDER = 'static/uploads'
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # Límite de 16MB para subidas
+    """Configuración base de la aplicación"""
+    # Configuraciones generales
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'das_trader_analyzer_secret_key')
     
-    # Clave secreta (para sesiones, CSRF, etc.)
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'das_trader_analyzer_secret_key'
+    # Rutas y directorios
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+    DATA_FOLDER = os.path.join(BASE_DIR, 'data')
     
-    # Configuración de base de datos
-    DB_HOST = os.environ.get('DB_HOST') or 'localhost'
-    DB_PORT = os.environ.get('DB_PORT') or 3306
-    DB_NAME = os.environ.get('DB_NAME') or 'das_trader_analyzer'
-    DB_USER = os.environ.get('DB_USER') or 'das_app_user'
-    DB_PASSWORD = os.environ.get('DB_PASSWORD') or 'secure_password_here'
+    # Límites de carga
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
     
-    # Configuración de almacenamiento
-    CACHE_TYPE = 'simple'  # Para Flask-Caching
+    # Rutas de archivos predeterminados
+    DEFAULT_ORDERS_PATH = os.path.join(DATA_FOLDER, 'Orders.csv')
+    DEFAULT_TRADES_PATH = os.path.join(DATA_FOLDER, 'Trades.csv')
+    DEFAULT_TICKETS_PATH = os.path.join(DATA_FOLDER, 'Tickets.csv')
+    
+    # Ruta de caché
+    DATA_CACHE_PATH = os.path.join(DATA_FOLDER, 'processed_cache.pkl')
 
 class DevelopmentConfig(Config):
-    """Configuración para entorno de desarrollo"""
+    """Configuración para desarrollo"""
     DEBUG = True
-    
-class TestingConfig(Config):
-    """Configuración para entorno de pruebas"""
-    TESTING = True
-    DB_NAME = 'das_trader_analyzer_test'
-    
+
 class ProductionConfig(Config):
-    """Configuración para entorno de producción"""
+    """Configuración para producción"""
     DEBUG = False
-    
-    # Clave secreta más segura en producción
-    SECRET_KEY = os.environ.get('SECRET_KEY') or os.urandom(24)
-    
-    # Usar conexión SSL para base de datos en producción
-    DB_SSL = True
-    
-    # Limitar intentos de login
-    LOGIN_ATTEMPTS = 5
-    
-    # Cache más avanzado
-    CACHE_TYPE = 'redis'
-    CACHE_REDIS_URL = os.environ.get('REDIS_URL')
 
-# Configuración por defecto según el entorno
-config = {
-    'development': DevelopmentConfig,
-    'testing': TestingConfig,
-    'production': ProductionConfig,
-    
-    'default': DevelopmentConfig
-}
-
-def get_config():
-    """Obtiene la configuración según el entorno definido en variables de entorno"""
-    env = os.environ.get('FLASK_ENV') or 'default'
-    return config.get(env, config['default'])
+def get_config(environment='development'):
+    """Obtiene la configuración según el entorno"""
+    configs = {
+        'development': DevelopmentConfig,
+        'production': ProductionConfig
+    }
+    return configs.get(environment, DevelopmentConfig)()

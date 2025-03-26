@@ -23,38 +23,38 @@
                     </div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link text-white {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">
+                            <a class="nav-link text-white {% if request.path == url_for('main.index') %}active{% endif %}" href="{{ url_for('main.index') }}">
                                 <i class="fas fa-home mr-2"></i> Inicio
                             </a>
                         </li>
                         
                         {% if processed_data is defined and processed_data %}
                             <li class="nav-item">
-                                <a class="nav-link text-white {% if request.path == url_for('dashboard') %}active{% endif %}" href="{{ url_for('dashboard') }}">
+                                <a class="nav-link text-white {% if request.path == url_for('main.dashboard') %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                                     <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
                                 </a>
                             </li>
                             
                             <li class="nav-item">
-                                <a class="nav-link text-white {% if request.path == url_for('symbols') %}active{% endif %}" href="{{ url_for('symbols') }}">
+                                <a class="nav-link text-white {% if request.path == url_for('analysis.symbols') %}active{% endif %}" href="{{ url_for('analysis.symbols') }}">
                                     <i class="fas fa-chart-line mr-2"></i> Análisis por Símbolo
                                 </a>
                             </li>
                             
                             <li class="nav-item">
-                                <a class="nav-link text-white {% if request.path == url_for('time_analysis') %}active{% endif %}" href="{{ url_for('time_analysis') }}">
+                                <a class="nav-link text-white {% if request.path == url_for('analysis.time_analysis') %}active{% endif %}" href="{{ url_for('analysis.time_analysis') }}">
                                     <i class="fas fa-clock mr-2"></i> Análisis Temporal
                                 </a>
                             </li>
                             
                             <li class="nav-item">
-                                <a class="nav-link text-white {% if request.path == url_for('buysell') %}active{% endif %}" href="{{ url_for('buysell') }}">
+                                <a class="nav-link text-white {% if request.path == url_for('analysis.buysell') %}active{% endif %}" href="{{ url_for('analysis.buysell') }}">
                                     <i class="fas fa-exchange-alt mr-2"></i> Compras/Ventas
                                 </a>
                             </li>
                             
                             <li class="nav-item">
-                                <a class="nav-link text-white {% if request.path == url_for('trades') %}active{% endif %}" href="{{ url_for('trades') }}">
+                                <a class="nav-link text-white {% if request.path == url_for('analysis.trades') %}active{% endif %}" href="{{ url_for('analysis.trades') }}">
                                     <i class="fas fa-list mr-2"></i> Listado de Operaciones
                                 </a>
                             </li>
@@ -79,7 +79,7 @@
                         <!-- Gestión de addons -->
                         <li class="nav-item mt-4">
                             <hr class="bg-secondary">
-                            <a class="nav-link text-white {% if request.path == url_for('manage_addons') %}active{% endif %}" href="{{ url_for('manage_addons') }}">
+                            <a class="nav-link text-white {% if request.path == url_for('analysis.manage_addons') %}active{% endif %}" href="{{ url_for('analysis.manage_addons') }}">
                                 <i class="fas fa-plug mr-2"></i> Gestionar Addons
                             </a>
                         </li>

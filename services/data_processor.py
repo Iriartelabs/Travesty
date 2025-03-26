@@ -9,98 +9,51 @@ def safe_float(value):
     except (ValueError, TypeError):
         return 0.0
 
-def safe_int(value):
-    """Convierte un valor a integer de forma segura"""
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return 0
-
 def process_trading_data(orders_path, trades_path, tickets_path):
     """Procesa los datos de trading a partir de los archivos CSV"""
     try:
-        # Cargar los archivos CSV con definición explícita de tipos de datos
-        orders_df = pd.read_csv(orders_path, dtype={
-            'OrderID': int,
-            'Trader': str,
-            'Account': int,
-            'Branch': str,
-            'route': str,
-            'bkrsym': str,
-            'rrno': str,
-            'B/S': str,
-            'SHORT': str,
-            'Market': str,
-            'stop': str,
-            'symb': str,
-            'qty': int,
-            'lvsqty': int,
-            'price': float,
-            'stopprice': float,
-            'trailprice': float,
-            'time': str
-        })
+        # Cargar los archivos CSV
+        orders_df = pd.read_csv(orders_path)
+        trades_df = pd.read_csv(trades_path)
+        tickets_df = pd.read_csv(tickets_path) if not tickets_path.endswith('Tickets.csv') else pd.DataFrame()
         
-        trades_df = pd.read_csv(trades_path, dtype={
-            'TradeID': int,
-            'OrderID': int,
-            'Trader': str,
-            'Account': int,
-            'Branch': str,
-            'route': str,
-            'bkrsym': str,
-            'rrno': str,
-            'B/S': str,
-            'SHORT': str,
-            'Market': str,
-            'symb': str,
-            'qty': int,
-            'price': float,
-            'time': str
-        })
+        # Convertir columnas numéricas
+        numeric_columns = {
+            'orders': ['qty', 'lvsqty', 'price', 'stopprice', 'trailprice'],
+            'trades': ['qty', 'price'],
+            'tickets': ['qty', 'price', 'commission', 'RouteFee']
+        }
         
-        tickets_df = pd.read_csv(tickets_path, dtype={
-            'TicketID': int,
-            'TradeID': int,
-            'Trader': str,
-            'Account': int,
-            'Branch': str,
-            'route': str,
-            'bkrsym': str,
-            'rrno': str,
-            'B/S': str,
-            'SHORT': str,
-            'Market': str,
-            'symb': str,
-            'qty': int,
-            'price': float,
-            'commission': float,
-            'RouteFee': float,
-            'time': str
-        })
+        for col in numeric_columns['orders']:
+            if col in orders_df.columns:
+                orders_df[col] = orders_df[col].apply(safe_float)
         
-        # Manejar valores nulos en pandas
-        orders_df.fillna({'qty': 0, 'lvsqty': 0, 'price': 0.0, 'stopprice': 0.0, 'trailprice': 0.0}, inplace=True)
-        trades_df.fillna({'qty': 0, 'price': 0.0}, inplace=True)
-        tickets_df.fillna({'qty': 0, 'price': 0.0, 'commission': 0.0, 'RouteFee': 0.0}, inplace=True)
+        for col in numeric_columns['trades']:
+            if col in trades_df.columns:
+                trades_df[col] = trades_df[col].apply(safe_float)
+        
+        if not tickets_df.empty:
+            for col in numeric_columns['tickets']:
+                if col in tickets_df.columns:
+                    tickets_df[col] = tickets_df[col].apply(safe_float)
         
         # Procesar y relacionar datos
-        processed_orders = process_orders(orders_df, trades_df, tickets_df)
+        processed_orders = _process_orders(orders_df, trades_df, tickets_df)
         
         # Calcular métricas
-        metrics = calculate_metrics(processed_orders)
+        metrics = _calculate_metrics(processed_orders)
         
         # Análisis por símbolo
-        symbol_performance = analyze_by_symbol(processed_orders)
+        symbol_performance = _analyze_by_symbol(processed_orders)
         
         # Análisis por hora del día
-        time_performance = analyze_by_time_of_day(processed_orders)
+        time_performance = _analyze_by_time_of_day(processed_orders)
         
         # Análisis por tipo (compra/venta)
-        buysell_performance = analyze_by_buysell(processed_orders)
+        buysell_performance = _analyze_by_buysell(processed_orders)
         
         # Crear curva de equidad
-        equity_curve = create_equity_curve(processed_orders)
+        equity_curve = _create_equity_curve(processed_orders)
         
         return {
             'metrics': metrics,
@@ -114,32 +67,36 @@ def process_trading_data(orders_path, trades_path, tickets_path):
     except Exception as e:
         print(f"Error procesando datos: {e}")
         # Retornar estructura vacía para evitar errores
-        return {
-            'metrics': {
-                'totalPL': 0,
-                'winRate': 0,
-                'profitFactor': 0,
-                'avgWin': 0,
-                'avgLoss': 0,
-                'maxDrawdown': 0,
-                'totalTrades': 0,
-                'winningTrades': 0,
-                'losingTrades': 0
-            },
-            'symbol_performance': [],
-            'time_performance': [],
-            'buysell_performance': [],
-            'equity_curve': [],
-            'processed_orders': []
-        }
+        return _get_empty_result()
 
-def process_orders(orders_df, trades_df, tickets_df):
+def _get_empty_result():
+    """Devuelve una estructura vacía de resultados"""
+    return {
+        'metrics': {
+            'totalPL': 0,
+            'winRate': 0,
+            'profitFactor': 0,
+            'avgWin': 0,
+            'avgLoss': 0,
+            'maxDrawdown': 0,
+            'totalTrades': 0,
+            'winningTrades': 0,
+            'losingTrades': 0
+        },
+        'symbol_performance': [],
+        'time_performance': [],
+        'buysell_performance': [],
+        'equity_curve': [],
+        'processed_orders': []
+    }
+
+def _process_orders(orders_df, trades_df, tickets_df):
     """Relaciona órdenes con trades y tickets"""
     processed_orders = []
     
     # Convertir DataFrames a diccionarios para facilitar búsquedas
     trades_by_order = trades_df.groupby('OrderID')
-    tickets_dict = {row['TradeID']: row for _, row in tickets_df.iterrows()}
+    tickets_dict = {row['TradeID']: row for _, row in tickets_df.iterrows()} if not tickets_df.empty else {}
     
     for _, order in orders_df.iterrows():
         order_id = order['OrderID']
@@ -153,15 +110,11 @@ def process_orders(orders_df, trades_df, tickets_df):
                 trade_dict = trade.to_dict()
                 trade_id = trade['TradeID']
                 
-                # Asegurar que los tipos numéricos son correctos
-                trade_dict['qty'] = int(trade['qty'])  # Asegurar que qty es int
-                trade_dict['price'] = float(trade['price'])  # Asegurar que price es float
-                
                 # Agregar comisiones y fees del ticket correspondiente
                 if trade_id in tickets_dict:
                     ticket = tickets_dict[trade_id]
-                    trade_dict['commission'] = float(ticket['commission'])
-                    trade_dict['routeFee'] = float(ticket['RouteFee'])
+                    trade_dict['commission'] = safe_float(ticket.get('commission', 0))
+                    trade_dict['routeFee'] = safe_float(ticket.get('RouteFee', 0))
                 else:
                     trade_dict['commission'] = 0.0
                     trade_dict['routeFee'] = 0.0
@@ -169,20 +122,20 @@ def process_orders(orders_df, trades_df, tickets_df):
                 order_trades.append(trade_dict)
         
         # Calcular totales y promedio
-        total_qty = sum(int(t['qty']) for t in order_trades) if order_trades else 0
+        total_qty = sum(safe_float(t['qty']) for t in order_trades) if order_trades else 0
         
         # Calcular precio promedio ponderado
         if total_qty > 0:
-            avg_price = sum(int(t['qty']) * float(t['price']) for t in order_trades) / total_qty
+            avg_price = sum(safe_float(t['qty']) * safe_float(t['price']) for t in order_trades) / total_qty
         else:
-            avg_price = 0.0
+            avg_price = 0
         
-        total_commission = sum(float(t.get('commission', 0.0)) for t in order_trades)
-        total_route_fee = sum(float(t.get('routeFee', 0.0)) for t in order_trades)
+        total_commission = sum(safe_float(t['commission']) for t in order_trades)
+        total_route_fee = sum(safe_float(t['routeFee']) for t in order_trades)
         
         # Calcular P&L
-        pnl = 0.0
-        order_price = float(order['price'])
+        pnl = 0
+        order_price = safe_float(order['price'])
         
         if order['B/S'] == 'B':  # Compra
             pnl = (order_price - avg_price) * total_qty if total_qty > 0 else 0
@@ -202,24 +155,10 @@ def process_orders(orders_df, trades_df, tickets_df):
             hour = dt.hour
             date = dt.strftime('%Y-%m-%d')
         except (ValueError, TypeError):
-            # Intentar con otro formato de fecha/hora
-            try:
-                dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
-                hour = dt.hour
-                date = dt.strftime('%Y-%m-%d')
-            except (ValueError, TypeError):
-                pass
+            pass
         
         # Crear objeto de orden procesada
         processed_order = order.to_dict()
-        
-        # Asegurar tipos correctos para los campos críticos
-        processed_order['qty'] = int(order['qty'])
-        processed_order['lvsqty'] = int(order['lvsqty'])
-        processed_order['price'] = float(order['price'])
-        processed_order['stopprice'] = float(order['stopprice'])
-        processed_order['trailprice'] = float(order['trailprice'])
-        
         processed_order.update({
             'trades': order_trades,
             'totalQty': total_qty,
@@ -237,20 +176,10 @@ def process_orders(orders_df, trades_df, tickets_df):
     
     return processed_orders
 
-def calculate_metrics(orders):
+def _calculate_metrics(orders):
     """Calcula métricas a partir de las órdenes procesadas"""
     if not orders:
-        return {
-            'totalPL': 0,
-            'winRate': 0,
-            'profitFactor': 0,
-            'avgWin': 0,
-            'avgLoss': 0,
-            'maxDrawdown': 0,
-            'totalTrades': 0,
-            'winningTrades': 0,
-            'losingTrades': 0
-        }
+        return _get_empty_result()['metrics']
     
     # Identificar operaciones ganadoras y perdedoras
     winning_orders = [o for o in orders if o['pnl'] > 0]
@@ -276,7 +205,6 @@ def calculate_metrics(orders):
     avg_loss = (total_loss / losing_trades) if losing_trades > 0 else 0
     
     # Calcular drawdown
-    # Ordenamos por tiempo
     sorted_orders = sorted(orders, key=lambda x: x.get('time', ''))
     max_drawdown = 0
     peak = 0
@@ -303,7 +231,7 @@ def calculate_metrics(orders):
         'losingTrades': losing_trades
     }
 
-def analyze_by_symbol(orders):
+def _analyze_by_symbol(orders):
     """Analiza rendimiento por símbolo"""
     symbols = {}
     
@@ -337,7 +265,7 @@ def analyze_by_symbol(orders):
     # Ordenar por P&L total (descendente)
     return sorted(symbol_stats, key=lambda x: x['totalPL'], reverse=True)
 
-def analyze_by_time_of_day(orders):
+def _analyze_by_time_of_day(orders):
     """Analiza rendimiento por hora del día"""
     hours = {}
     
@@ -371,7 +299,7 @@ def analyze_by_time_of_day(orders):
     # Ordenar por hora
     return sorted(hour_stats, key=lambda x: x['hour'])
 
-def analyze_by_buysell(orders):
+def _analyze_by_buysell(orders):
     """Analiza rendimiento por tipo (compra/venta)"""
     buys = [o for o in orders if o.get('B/S') == 'B']
     sells = [o for o in orders if o.get('B/S') == 'S']
@@ -379,7 +307,7 @@ def analyze_by_buysell(orders):
     # Estadísticas de compras
     buy_pl = sum(o['pnl'] for o in buys)
     buy_count = len(buys)
-    buy_winners= len([o for o in buys if o['pnl'] > 0])
+    buy_winners = len([o for o in buys if o['pnl'] > 0])
     buy_win_rate = (buy_winners / buy_count * 100) if buy_count > 0 else 0
     
     # Estadísticas de ventas
@@ -403,7 +331,7 @@ def analyze_by_buysell(orders):
         }
     ]
 
-def create_equity_curve(orders):
+def _create_equity_curve(orders):
     """Crea la curva de equidad"""
     # Ordenar por tiempo
     sorted_orders = sorted(orders, key=lambda x: x.get('time', ''))

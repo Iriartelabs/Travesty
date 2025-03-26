@@ -18,7 +18,7 @@
                     </div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active text-white" href="{{ url_for('index') }}">
+                            <a class="nav-link active text-white" href="{{ url_for('main.index') }}">
                                 Inicio
                             </a>
                         </li>
@@ -31,18 +31,6 @@
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Analizador de Trading DAS</h1>
                 </div>
-
-                <!-- Mensajes flash -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
 
                 <div class="row justify-content-center">
                     <div class="col-md-8">
@@ -61,7 +49,7 @@
                                 </div>
 
                                 <div class="card-text">
-                                    <form action="{{ url_for('upload_files') }}" method="post" enctype="multipart/form-data" class="mb-4">
+                                    <form action="{{ url_for('upload.upload_files') }}" method="post" enctype="multipart/form-data" class="mb-4">
                                         <div class="mb-3">
                                             <label for="orders" class="form-label">Archivo Orders.csv</label>
                                             <input type="file" class="form-control" id="orders" name="orders" accept=".csv">
@@ -82,7 +70,7 @@
                                     {% if has_default_files %}
                                     <div class="border-top pt-3">
                                         <p class="text-muted">O utiliza los archivos ya cargados:</p>
-                                        <form action="{{ url_for('upload_files') }}" method="post">
+                                        <form action="{{ url_for('upload.upload_files') }}" method="post">
                                             <input type="hidden" name="use_default" value="true">
                                             <div class="d-grid gap-2">
                                                 <button type="submit" class="btn btn-outline-secondary">Usar archivos existentes</button>
