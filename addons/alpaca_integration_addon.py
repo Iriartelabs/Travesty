@@ -79,13 +79,224 @@ def alpaca_dashboard():
 
 def alpaca_settings():
     """View for managing Alpaca API settings"""
-    # Simplemente mostrar las credenciales actuales (solo lectura)
+    global ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL
+    
+    # Verificar si estamos en modo guardar
+    if request.args.get('save') == '1':
+        api_key = request.args.get('api_key', '')
+        api_secret = request.args.get('api_secret', '')
+        base_url = request.args.get('base_url', 'https://paper-api.alpaca.markets/v2')
+        
+        # Guardar las credenciales
+        if save_credentials(api_key, api_secret, base_url):
+            # Actualizar variables globales
+            ALPACA_API_KEY = api_key
+            ALPACA_API_SECRET = api_secret
+            ALPACA_BASE_URL = base_url
+            flash('Configuración guardada con éxito', 'success')
+        else:
+            flash('Error al guardar la configuración', 'danger')
+    
+    # Renderizar la plantilla con las credenciales actuales
     return render_template(
         'alpaca_settings.html',
         api_key=ALPACA_API_KEY,
         api_secret=ALPACA_API_SECRET,
-        base_url=ALPACA_BASE_URL
+        base_url=ALPACA_BASE_URL,
+        credentials_file=CREDENTIALS_FILE
     )
+
+def submit_order():
+    """Endpoint para enviar órdenes reales a Alpaca"""
+    import requests
+    import json
+    
+    # Verificar que es una petición POST
+    if request.method != 'POST':
+        return jsonify({
+            'success': False,
+            'message': 'Este endpoint solo acepta peticiones POST'
+        })
+    
+    # Cargar credenciales
+    credentials = load_credentials()
+    
+    # Verificar que hay credenciales configuradas
+    if not credentials.get('api_key') or not credentials.get('api_secret'):
+        return jsonify({
+            'success': False,
+            'message': 'No hay credenciales de API configuradas'
+        })
+    
+    # Obtener datos del formulario
+    try:
+        # Intentar obtener datos como JSON primero
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # Si no es JSON, obtener de form data
+            data = request.form
+            
+        symbol = data.get('symbol', '').upper()
+        order_type = data.get('orderType', 'market')
+        side = data.get('side', 'buy')
+        qty = float(data.get('qty', 1))
+        
+        # Validar datos básicos
+        if not symbol:
+            return jsonify({
+                'success': False,
+                'message': 'Debe especificar un símbolo válido'
+            })
+            
+        # Preparar datos de la orden
+        order_data = {
+            'symbol': symbol,
+            'qty': qty,
+            'side': side,
+            'type': order_type,
+            'time_in_force': 'day'
+        }
+        
+        # Añadir precio límite si es necesario
+        if order_type in ['limit', 'stop_limit'] and 'limitPrice' in data:
+            order_data['limit_price'] = float(data.get('limitPrice'))
+        
+        # Configurar headers y URL
+        headers = {
+            'APCA-API-KEY-ID': credentials.get('api_key'),
+            'APCA-API-SECRET-KEY': credentials.get('api_secret'),
+            'Content-Type': 'application/json'
+        }
+        
+        # Determinar el endpoint correcto
+        base_url = credentials.get('base_url')
+        if not base_url.endswith('/'):
+            base_url += '/'
+        
+        orders_url = f"{base_url}orders"
+        
+        # Enviar la orden a Alpaca
+        response = requests.post(
+            orders_url,
+            headers=headers,
+            data=json.dumps(order_data),
+            timeout=10
+        )
+        
+        # Procesar respuesta
+        if response.status_code in [200, 201]:
+            order_response = response.json()
+            print(f"[INFO] Orden enviada con éxito: {order_response.get('id')}")
+            return jsonify({
+                'success': True,
+                'message': 'Orden enviada correctamente',
+                'order': order_response
+            })
+        else:
+            error_msg = f"Error al enviar orden: {response.status_code} - {response.text}"
+            print(f"[ERROR] {error_msg}")
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            })
+            
+    except Exception as e:
+        error_msg = f"Error procesando la orden: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        })
+
+def alpaca_create_order():
+    """Endpoint para enviar órdenes reales a Alpaca (versión GET)"""
+    import requests
+    import json
+    
+    # Cargar credenciales
+    credentials = load_credentials()
+    
+    # Verificar que hay credenciales configuradas
+    if not credentials.get('api_key') or not credentials.get('api_secret'):
+        return jsonify({
+            'success': False,
+            'message': 'No hay credenciales de API configuradas'
+        })
+    
+    # Obtener datos de los parámetros de consulta
+    try:
+        symbol = request.args.get('symbol', '').upper()
+        order_type = request.args.get('orderType', 'market')
+        side = request.args.get('side', 'buy')
+        qty = float(request.args.get('qty', 1))
+        
+        # Validar datos básicos
+        if not symbol:
+            return jsonify({
+                'success': False,
+                'message': 'Debe especificar un símbolo válido'
+            })
+            
+        # Preparar datos de la orden
+        order_data = {
+            'symbol': symbol,
+            'qty': qty,
+            'side': side,
+            'type': order_type,
+            'time_in_force': 'day'
+        }
+        
+        # Añadir precio límite si es necesario
+        if order_type in ['limit', 'stop_limit'] and 'limitPrice' in request.args:
+            order_data['limit_price'] = float(request.args.get('limitPrice'))
+        
+        # Configurar headers y URL
+        headers = {
+            'APCA-API-KEY-ID': credentials.get('api_key'),
+            'APCA-API-SECRET-KEY': credentials.get('api_secret'),
+            'Content-Type': 'application/json'
+        }
+        
+        # Determinar el endpoint correcto
+        base_url = credentials.get('base_url')
+        if not base_url.endswith('/'):
+            base_url += '/'
+        
+        orders_url = f"{base_url}orders"
+        
+        # Enviar la orden a Alpaca
+        response = requests.post(
+            orders_url,
+            headers=headers,
+            data=json.dumps(order_data),
+            timeout=10
+        )
+        
+        # Procesar respuesta
+        if response.status_code in [200, 201]:
+            order_response = response.json()
+            print(f"[INFO] Orden enviada con éxito: {order_response.get('id')}")
+            return jsonify({
+                'success': True,
+                'message': 'Orden enviada correctamente',
+                'order': order_response
+            })
+        else:
+            error_msg = f"Error al enviar orden: {response.status_code} - {response.text}"
+            print(f"[ERROR] {error_msg}")
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            })
+            
+    except Exception as e:
+        error_msg = f"Error procesando la orden: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return jsonify({
+            'success': False,
+            'message': error_msg
+        })
 
 def register_addon():
     """Register the Alpaca integration addon in the system"""
@@ -110,6 +321,33 @@ def register_addon():
         'view_func': alpaca_settings,
         'template': 'alpaca_settings.html',
         'icon': 'cog',
+        'active': False,  # No mostrar en la barra lateral
+        'version': '1.0.0',
+        'author': 'DAS Trader Analyzer Team'
+    })
+    
+    # Registrar el endpoint para enviar órdenes
+    AddonRegistry.register('alpaca_submit_order', {
+        'name': 'Alpaca Submit Order',
+        'description': 'Endpoint para enviar órdenes a Alpaca',
+        'route': '/alpaca/submit_order',
+        'view_func': submit_order,
+        'template': None,
+        'icon': None,
+        'active': False,  # No mostrar en la barra lateral
+        # Quitamos 'methods': ['POST'] ya que parece no ser compatible
+        'version': '1.0.0',
+        'author': 'DAS Trader Analyzer Team'
+    })
+    
+    # Registrar el endpoint para enviar órdenes (versión GET)
+    AddonRegistry.register('alpaca_create_order', {
+        'name': 'Alpaca Create Order',
+        'description': 'Endpoint para enviar órdenes a Alpaca (versión GET)',
+        'route': '/alpaca/create_order',
+        'view_func': alpaca_create_order,
+        'template': None,
+        'icon': None,
         'active': False,  # No mostrar en la barra lateral
         'version': '1.0.0',
         'author': 'DAS Trader Analyzer Team'
