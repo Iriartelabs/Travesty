@@ -192,7 +192,7 @@
             const alertId = $(this).data('id');
             
             $.ajax({
-                url: '{{ url_for("disable_alert") }}',
+                url: '{{ url_for("trading_alerts.disable_alert") }}',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ alert_id: alertId }),
