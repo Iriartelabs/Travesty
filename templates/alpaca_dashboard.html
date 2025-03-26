@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block title %}Integración con Alpaca - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Integración con Alpaca Markets</h1>
+    <div>
+        {% if has_credentials %}
+        <a href="{{ url_for('alpaca.alpaca_settings') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm mr-2">
+            <i class="fas fa-cog fa-sm text-white-50"></i> Configuración
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if not alpaca_available %}
+<div class="alert alert-warning">
+    <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Biblioteca no disponible</h4>
+    <p>La biblioteca de Alpaca Trade API no está instalada en el sistema. Para utilizar esta funcionalidad, es necesario instalarla.</p>
+    <hr>
+    <p class="mb-0">Ejecuta el siguiente comando para instalar la biblioteca:</p>
+    <pre class="mt-2"><code>pip install alpaca-trade-api</code></pre>
+</div>
+{% else %}
+
+{% if not has_credentials %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Bienvenido a la Integración con Alpaca</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <img src="https://alpaca.markets/static/assets/logo-alpha.png" alt="Alpaca Logo" class="img-fluid mb-4" style="max-height: 100px;">
+                    <h5>Integración con datos de mercado en tiempo real</h5>
+                    <p class="mb-4">Para comenzar a utilizar la integración con Alpaca Markets, debes configurar tus credenciales de API.</p>
+                    
+                    <a href="{{ url_for('alpaca.alpaca_settings') }}" class="btn btn-primary">
+                        <i class="fas fa-key fa-sm text-white-50"></i> Configurar Credenciales
+                    </a>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> ¿Qué es Alpaca?</h5>
+                        <p>Alpaca es una API de trading e inversión que proporciona datos de mercado en tiempo real y permite la ejecución de órdenes. Con esta integración podrás:</p>
+                        <ul>
+                            <li>Obtener datos de mercado en tiempo real para tus alertas</li>
+                            <li>Monitorear precios actuales de tus activos</li>
+                            <li>Acceder a indicadores técnicos y analíticos</li>
+                            <li>Verificar automáticamente condiciones para tus alertas</li>
+                        </ul>
+                        <p class="mb-0">Para utilizar esta integración, necesitas crear una cuenta en <a href="https://alpaca.markets" target="_blank">Alpaca Markets</a> y obtener tus claves de API.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+
+<div class="row">
+    <!-- Estado de Conexión -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Estado de Conexión</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                        <div class="dropdown-header">Acciones:</div>
+                        <a class="dropdown-item" href="#" id="testConnection">Probar Conexión</a>
+                        <a class="dropdown-item" href="{{ url_for('alpaca.alpaca_settings') }}">Configuración</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if connection_info and connection_info.success %}
+                <div class="text-center mb-4">
+                    <div class="badge bg-success text-white p-2 mb-3">
+                        <i class="fas fa-check-circle fa-lg"></i> Conectado
+                    </div>
+                    
+                    <h5>Modo: {% if is_paper %}Paper Trading{% else %}Trading Real{% endif %}</h5>
+                    <p class="mb-0 text-muted small">
+                        {% if is_paper %}
+                        Modo de prueba con datos reales pero dinero virtual
+                        {% else %}
+                        <span class="text-danger">ATENCIÓN: Modo de trading real con dinero real</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="border-top pt-3">
+                    <h6 class="text-primary">Información de la Cuenta</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>ID:</th>
+                                <td>{{ connection_info.account.id }}</td>
+                            </tr>
+                            <tr>
+                                <th>Efectivo:</th>
+                                <td>${{ connection_info.account.cash|number_format(2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Valor del Portfolio:</th>
+                                <td>${{ connection_info.account.portfolio_value|number_format(2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Equity:</th>
+                                <td>${{ connection_info.account.equity|number_format(2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Poder de Compra:</th>
+                                <td>${{ connection_info.account.buying_power|number_format(2) }}</td>
+                            </tr>
+                            <tr>
+                                <th>Estado:</th>
+                                <td>
+                                    <span class="badge bg-{{ connection_info.account.status == 'ACTIVE' ? 'success' : 'warning' }} text-white">
+                                        {{ connection_info.account.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center">
+                    <div class="badge bg-warning text-white p-2 mb-3">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i> No conectado
+                    </div>
+                    
+                    <p>No se ha probado la conexión o hay un problema con las credenciales.</p>
+                    
+                    <button id="testConnection" class="btn btn-primary btn-sm">
+                        <i class="fas fa-sync fa-sm"></i> Probar Conexión
+                    </button>
+                    
+                    {% if connection_info and not connection_info.success %}
+                    <div class="alert alert-danger mt-3">
+                        <p class="mb-0"><strong>Error:</strong> {{ connection_info.error }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Streaming de Datos -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Streaming de Datos</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert {{ streaming_active ? 'alert-success' : 'alert-secondary' }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="alert-heading">
+                                {% if streaming_active %}
+                                <i class="fas fa-broadcast-tower"></i> Streaming Activo
+                                {% else %}
+                                <i class="fas fa-power-off"></i> Streaming Inactivo
+                                {% endif %}
+                            </h5>
+                            <p class="mb-0">
+                                {% if streaming_active %}
+                                Recibiendo datos en tiempo real para {{ active_symbols|length }} símbolos.
+                                {% else %}
+                                No hay streaming de datos activo. Selecciona símbolos para monitorear.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <button id="toggleStreaming" class="btn {{ streaming_active ? 'btn-danger' : 'btn-success' }}">
+                                {% if streaming_active %}
+                                <i class="fas fa-stop"></i> Detener
+                                {% else %}
+                                <i class="fas fa-play"></i> Iniciar
+                                {% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if streaming_active and active_symbols %}
+                <div class="mt-3">
+                    <h6 class="font-weight-bold">Símbolos Monitoreados:</h6>
+                    <div class="row">
+                        {% for symbol in active_symbols %}
+                        <div class="col-md-3 col-sm-4 col-6 mb-2">
+                            <a href="{{ url_for('alpaca.alpaca_symbol_data', symbol=symbol) }}" class="btn btn-outline-primary btn-sm btn-block">
+                                {{ symbol }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <h6 class="font-weight-bold mb-3">Seleccionar Símbolos para Monitorear:</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label for="symbolsSelect">Símbolos Disponibles:</label>
+                                <select multiple class="form-select" id="symbolsSelect" size="8">
+                                    {% for symbol in available_symbols %}
+                                    <option value="{{ symbol }}" {% if symbol in active_symbols %}selected{% endif %}>{{ symbol }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text text-muted small">
+                                    Mantén pulsada la tecla Ctrl para seleccionar múltiples símbolos
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="d-block">&nbsp;</label>
+                            <button id="applySymbols" class="btn btn-primary btn-block mb-2">
+                                <i class="fas fa-check"></i> Aplicar Selección
+                            </button>
+                            <div class="mt-3">
+                                <div class="form-group">
+                                    <label for="customSymbol">Añadir Símbolo Personalizado:</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="customSymbol" placeholder="ej. AAPL">
+                                        <button class="btn btn-outline-secondary" type="button" id="addCustomSymbol">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Panel de Datos de Mercado -->
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Panel de Datos de Mercado</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Selecciona un símbolo para ver información detallada y configurar alertas específicas.
+                </div>
+                
+                <div class="row" id="marketDataContainer">
+                    {% if active_symbols %}
+                    {% for symbol in active_symbols %}
+                    <div class="col-xl-3 col-md-4 col-sm-6 mb-4">
+                        <div class="card border-left-primary h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="h5 mb-0 font-weight-bold text-primary">{{ symbol }}</div>
+                                        <div class="text-xs font-weight-bold text-muted text-uppercase mb-1">
+                                            Precio Actual
+                                        </div>
+                                        <div class="h6 mb-0 text-gray-800" id="price-{{ symbol }}">
+                                            Cargando...
+                                        </div>
+                                        <div class="mt-2">
+                                            <a href="{{ url_for('alpaca.alpaca_symbol_data', symbol=symbol) }}" class="btn btn-sm btn-outline-primary">
+                                                Ver detalle
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="col-12">
+                        <p class="text-

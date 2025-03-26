@@ -1,0 +1,566 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de Alertas - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Configuración de Alertas</h1>
+    <a href="{{ url_for('trading_alerts.trading_alerts') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a Alertas
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Configuración General -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Configuración General</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                        <div class="dropdown-header">Opciones:</div>
+                        <a class="dropdown-item" href="#" id="resetDefaults">Restaurar predeterminados</a>
+                        <a class="dropdown-item" href="#" id="exportSettings">Exportar configuración</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">Ayuda</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <form id="generalSettingsForm" method="post" action="{{ url_for('trading_alerts.settings') }}">
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Activación de Alertas</label>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="enableAlerts" name="enableAlerts" checked>
+                            <label class="form-check-label" for="enableAlerts">Habilitar sistema de alertas</label>
+                        </div>
+                        <div class="form-text text-muted small">
+                            Desactivar todas las alertas del sistema temporalmente
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="alertCheckInterval" class="form-label font-weight-bold">Intervalo de Verificación</label>
+                        <select class="form-select" id="alertCheckInterval" name="alertCheckInterval">
+                            <option value="realtime">Tiempo real (cuando sea posible)</option>
+                            <option value="1min">Cada minuto</option>
+                            <option value="5min" selected>Cada 5 minutos</option>
+                            <option value="15min">Cada 15 minutos</option>
+                            <option value="30min">Cada 30 minutos</option>
+                            <option value="1h">Cada hora</option>
+                            <option value="manual">Solo manual</option>
+                        </select>
+                        <div class="form-text text-muted small">
+                            Frecuencia con la que se verifican las condiciones de las alertas
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="maxAlerts" class="form-label font-weight-bold">Límite de Alertas</label>
+                        <input type="number" class="form-control" id="maxAlerts" name="maxAlerts" value="50" min="5" max="200">
+                        <div class="form-text text-muted small">
+                            Número máximo de alertas a mantener en el historial
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="alertExpiration" class="form-label font-weight-bold">Expiración de Alertas</label>
+                        <select class="form-select" id="alertExpiration" name="alertExpiration">
+                            <option value="never">Nunca expirar</option>
+                            <option value="1day">1 día</option>
+                            <option value="3days">3 días</option>
+                            <option value="1week" selected>1 semana</option>
+                            <option value="2weeks">2 semanas</option>
+                            <option value="1month">1 mes</option>
+                        </select>
+                        <div class="form-text text-muted small">
+                            Tiempo después del cual las alertas se marcan como expiradas
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Opciones Avanzadas</label>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="allowDuplicates" name="allowDuplicates">
+                            <label class="form-check-label" for="allowDuplicates">Permitir alertas duplicadas</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="logAllAlerts" name="logAllAlerts" checked>
+                            <label class="form-check-label" for="logAllAlerts">Registrar todas las alertas en histórico</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableDebugMode" name="enableDebugMode">
+                            <label class="form-check-label" for="enableDebugMode">Modo depuración</label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save fa-sm text-white-50 me-1"></i> Guardar Configuración
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuración de Notificaciones -->
+    <div class="col-xl-6 col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Notificaciones</h6>
+            </div>
+            <div class="card-body">
+                <form id="notificationSettingsForm" method="post" action="{{ url_for('trading_alerts.settings') }}">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-1"></i> Las notificaciones te permiten recibir alertas incluso cuando no estás utilizando la aplicación.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Canales de Notificación</label>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="enableBrowserNotifications" name="enableBrowserNotifications" checked>
+                            <label class="form-check-label" for="enableBrowserNotifications">Notificaciones del navegador</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="enableEmailNotifications" name="enableEmailNotifications">
+                            <label class="form-check-label" for="enableEmailNotifications">Correo electrónico</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="enableSoundAlerts" name="enableSoundAlerts" checked>
+                            <label class="form-check-label" for="enableSoundAlerts">Alertas sonoras</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="emailSettingsSection" style="display:none;">
+                        <label for="emailAddress" class="form-label">Dirección de Correo</label>
+                        <input type="email" class="form-control" id="emailAddress" name="emailAddress" placeholder="tu@email.com">
+                        <div class="form-text text-muted small">
+                            Dirección donde recibirás las notificaciones por correo
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notificationPriority" class="form-label font-weight-bold">Prioridad de Notificación</label>
+                        <select class="form-select" id="notificationPriority" name="notificationPriority">
+                            <option value="all">Todas las alertas</option>
+                            <option value="important" selected>Solo alertas importantes</option>
+                            <option value="critical">Solo alertas críticas</option>
+                        </select>
+                        <div class="form-text text-muted small">
+                            Determina qué tipos de alertas generarán notificaciones
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="soundEffect" class="form-label font-weight-bold">Sonido de Alerta</label>
+                        <select class="form-select" id="soundEffect" name="soundEffect">
+                            <option value="ping">Ping (suave)</option>
+                            <option value="bell" selected>Campana</option>
+                            <option value="alert">Alerta (fuerte)</option>
+                            <option value="cash">Caja registradora</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                        <div class="mt-2" id="testSoundContainer">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="testSound">
+                                <i class="fas fa-volume-up me-1"></i> Probar sonido
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="customSoundSection" style="display:none;">
+                        <label for="customSoundUrl" class="form-label">URL de Sonido Personalizado</label>
+                        <input type="url" class="form-control" id="customSoundUrl" name="customSoundUrl" placeholder="https://ejemplo.com/sonido.mp3">
+                        <div class="form-text text-muted small">
+                            URL a un archivo MP3 o WAV para usar como alerta personalizada
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Opciones Adicionales</label>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="doNotDisturbMode" name="doNotDisturbMode">
+                            <label class="form-check-label" for="doNotDisturbMode">Modo No Molestar (8PM-8AM)</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="groupSimilarAlerts" name="groupSimilarAlerts" checked>
+                            <label class="form-check-label" for="groupSimilarAlerts">Agrupar alertas similares</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoHideAlerts" name="autoHideAlerts" checked>
+                            <label class="form-check-label" for="autoHideAlerts">Ocultar alertas después de 1 minuto</label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save fa-sm text-white-50 me-1"></i> Guardar Notificaciones
+                    </button>
+                    <button type="button" class="btn btn-outline-primary ms-2" id="requestPermission">
+                        <i class="fas fa-bell fa-sm me-1"></i> Solicitar Permiso de Notificaciones
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configuración de Criterios Predeterminados -->
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Criterios Predeterminados para Alertas</h6>
+            </div>
+            <div class="card-body">
+                <form id="defaultCriteriaForm" method="post" action="{{ url_for('trading_alerts.settings') }}">
+                    <div class="row">
+                        <!-- Columna 1 -->
+                        <div class="col-md-4">
+                            <h5 class="text-primary mb-3">Criterios de Precio</h5>
+                            
+                            <div class="mb-3">
+                                <label for="defaultPriceMovement" class="form-label">Movimiento de Precio</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="defaultPriceMovement" name="defaultPriceMovement" value="2" min="0.1" step="0.1">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text text-muted small">
+                                    Cambio porcentual predeterminado para alertas de precio
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="defaultVolumeTrigger" class="form-label">Umbral de Volumen</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="defaultVolumeTrigger" name="defaultVolumeTrigger" value="150" min="1" step="1">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text text-muted small">
+                                    Volumen relativo para activar alertas (100% = promedio)
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Columna 2 -->
+                        <div class="col-md-4">
+                            <h5 class="text-primary mb-3">Criterios Técnicos</h5>
+                            
+                            <div class="mb-3">
+                                <label for="defaultSMAperiod" class="form-label">Período SMA</label>
+                                <input type="number" class="form-control" id="defaultSMAperiod" name="defaultSMAperiod" value="20" min="5" max="200" step="1">
+                                <div class="form-text text-muted small">
+                                    Período predeterminado para Media Móvil Simple
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="defaultRSIthreshold" class="form-label">Umbral RSI</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="defaultRSIthreshold" name="defaultRSIthreshold" value="30" min="1" max="99" step="1">
+                                    <span class="input-group-text">/ 70</span>
+                                </div>
+                                <div class="form-text text-muted small">
+                                    Valores para sobrevendido/sobrecomprado (RSI)
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Columna 3 -->
+                        <div class="col-md-4">
+                            <h5 class="text-primary mb-3">Opciones de Vencimiento</h5>
+                            
+                            <div class="mb-3">
+                                <label for="defaultAlertDuration" class="form-label">Duración Predeterminada</label>
+                                <select class="form-select" id="defaultAlertDuration" name="defaultAlertDuration">
+                                    <option value="1day">1 día</option>
+                                    <option value="3days" selected>3 días</option>
+                                    <option value="1week">1 semana</option>
+                                    <option value="2weeks">2 semanas</option>
+                                    <option value="1month">1 mes</option>
+                                    <option value="never">No expirar</option>
+                                </select>
+                                <div class="form-text text-muted small">
+                                    Tiempo predeterminado antes de que expire una alerta
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="defaultAlertPriority" class="form-label">Prioridad Predeterminada</label>
+                                <select class="form-select" id="defaultAlertPriority" name="defaultAlertPriority">
+                                    <option value="low">Baja</option>
+                                    <option value="medium" selected>Media</option>
+                                    <option value="high">Alta</option>
+                                    <option value="critical">Crítica</option>
+                                </select>
+                                <div class="form-text text-muted small">
+                                    Nivel de prioridad predeterminado para nuevas alertas
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save fa-sm text-white-50 me-1"></i> Guardar Criterios Predeterminados
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Ayuda -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">Ayuda de Configuración de Alertas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h5 class="text-primary">Configuración General</h5>
+                <p>Esta sección controla el comportamiento básico del sistema de alertas:</p>
+                <ul>
+                    <li><strong>Intervalo de Verificación:</strong> Define con qué frecuencia se comprueban las condiciones de las alertas.</li>
+                    <li><strong>Límite de Alertas:</strong> Evita que el historial crezca indefinidamente.</li>
+                    <li><strong>Expiración:</strong> Las alertas antiguas se marcan automáticamente como expiradas después de este tiempo.</li>
+                </ul>
+                
+                <h5 class="text-primary mt-3">Notificaciones</h5>
+                <p>Configura cómo y cuándo recibir notificaciones:</p>
+                <ul>
+                    <li><strong>Notificaciones del navegador:</strong> Aparecen incluso cuando tienes otra pestaña abierta.</li>
+                    <li><strong>Correo electrónico:</strong> Recibe alertas importantes cuando no estás usando la aplicación.</li>
+                    <li><strong>Alertas sonoras:</strong> Añade un componente auditivo a las notificaciones.</li>
+                </ul>
+                
+                <h5 class="text-primary mt-3">Criterios Predeterminados</h5>
+                <p>Define valores iniciales que se utilizarán al crear nuevas alertas:</p>
+                <ul>
+                    <li><strong>Criterios de Precio:</strong> Valores para movimientos significativos de precio y volumen.</li>
+                    <li><strong>Criterios Técnicos:</strong> Parámetros para indicadores como SMA y RSI.</li>
+                    <li><strong>Opciones de Vencimiento:</strong> Establece cuánto tiempo permanecen activas las alertas por defecto.</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Manejar visibilidad de sección de correo electrónico
+        $('#enableEmailNotifications').change(function() {
+            if ($(this).is(':checked')) {
+                $('#emailSettingsSection').slideDown();
+            } else {
+                $('#emailSettingsSection').slideUp();
+            }
+        });
+        
+        // Manejar visibilidad de sección de sonido personalizado
+        $('#soundEffect').change(function() {
+            if ($(this).val() === 'custom') {
+                $('#customSoundSection').slideDown();
+            } else {
+                $('#customSoundSection').slideUp();
+            }
+        });
+        
+        // Probar sonido de alerta
+        $('#testSound').click(function() {
+            const soundType = $('#soundEffect').val();
+            let soundUrl;
+            
+            switch(soundType) {
+                case 'ping':
+                    soundUrl = '/static/sounds/ping.mp3';
+                    break;
+                case 'bell':
+                    soundUrl = '/static/sounds/bell.mp3';
+                    break;
+                case 'alert':
+                    soundUrl = '/static/sounds/alert.mp3';
+                    break;
+                case 'cash':
+                    soundUrl = '/static/sounds/cash.mp3';
+                    break;
+                case 'custom':
+                    soundUrl = $('#customSoundUrl').val();
+                    if (!soundUrl) {
+                        alert('Por favor, introduce una URL válida para el sonido personalizado.');
+                        return;
+                    }
+                    break;
+            }
+            
+            const audio = new Audio(soundUrl);
+            audio.play().catch(e => {
+                console.error('Error reproduciendo audio:', e);
+                alert('No se pudo reproducir el sonido. Verifica que la URL sea correcta y que tu navegador permita reproducción automática.');
+            });
+        });
+        
+        // Solicitar permiso para notificaciones
+        $('#requestPermission').click(function() {
+            if (!("Notification" in window)) {
+                alert("Este navegador no soporta notificaciones de escritorio");
+            } else if (Notification.permission === "granted") {
+                alert("Ya tienes permiso para recibir notificaciones");
+                
+                // Enviar notificación de prueba
+                const notification = new Notification("Notificación de Prueba", {
+                    body: "Las notificaciones están funcionando correctamente",
+                    icon: "/static/img/notification-icon.png"
+                });
+                
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(function (permission) {
+                    if (permission === "granted") {
+                        alert("¡Permiso concedido! Ahora recibirás notificaciones.");
+                        
+                        // Enviar notificación de prueba
+                        const notification = new Notification("Notificación de Prueba", {
+                            body: "Las notificaciones están funcionando correctamente",
+                            icon: "/static/img/notification-icon.png"
+                        });
+                    } else {
+                        alert("Has denegado el permiso para recibir notificaciones.");
+                    }
+                });
+            }
+        });
+        
+        // Restaurar valores predeterminados
+        $('#resetDefaults').click(function(e) {
+            e.preventDefault();
+            
+            if (confirm('¿Estás seguro de que deseas restaurar toda la configuración a los valores predeterminados?')) {
+                $('#generalSettingsForm')[0].reset();
+                $('#notificationSettingsForm')[0].reset();
+                $('#defaultCriteriaForm')[0].reset();
+                
+                // Valores predeterminados específicos
+                $('#enableAlerts').prop('checked', true);
+                $('#alertCheckInterval').val('5min');
+                $('#maxAlerts').val(50);
+                $('#alertExpiration').val('1week');
+                $('#allowDuplicates').prop('checked', false);
+                $('#logAllAlerts').prop('checked', true);
+                $('#enableDebugMode').prop('checked', false);
+                
+                $('#enableBrowserNotifications').prop('checked', true);
+                $('#enableEmailNotifications').prop('checked', false);
+                $('#enableSoundAlerts').prop('checked', true);
+                $('#notificationPriority').val('important');
+                $('#soundEffect').val('bell');
+                $('#doNotDisturbMode').prop('checked', false);
+                $('#groupSimilarAlerts').prop('checked', true);
+                $('#autoHideAlerts').prop('checked', true);
+                
+                $('#defaultPriceMovement').val(2);
+                $('#defaultVolumeTrigger').val(150);
+                $('#defaultSMAperiod').val(20);
+                $('#defaultRSIthreshold').val(30);
+                $('#defaultAlertDuration').val('3days');
+                $('#defaultAlertPriority').val('medium');
+                
+                // Ocultar secciones condicionales
+                $('#emailSettingsSection').hide();
+                $('#customSoundSection').hide();
+                
+                alert('Configuración restaurada a los valores predeterminados.');
+            }
+        });
+        
+        // Exportar configuración
+        $('#exportSettings').click(function(e) {
+            e.preventDefault();
+            
+            // Recopilar toda la configuración
+            const generalSettings = {
+                enableAlerts: $('#enableAlerts').is(':checked'),
+                alertCheckInterval: $('#alertCheckInterval').val(),
+                maxAlerts: $('#maxAlerts').val(),
+                alertExpiration: $('#alertExpiration').val(),
+                allowDuplicates: $('#allowDuplicates').is(':checked'),
+                logAllAlerts: $('#logAllAlerts').is(':checked'),
+                enableDebugMode: $('#enableDebugMode').is(':checked')
+            };
+            
+            const notificationSettings = {
+                enableBrowserNotifications: $('#enableBrowserNotifications').is(':checked'),
+                enableEmailNotifications: $('#enableEmailNotifications').is(':checked'),
+                enableSoundAlerts: $('#enableSoundAlerts').is(':checked'),
+                emailAddress: $('#emailAddress').val(),
+                notificationPriority: $('#notificationPriority').val(),
+                soundEffect: $('#soundEffect').val(),
+                customSoundUrl: $('#customSoundUrl').val(),
+                doNotDisturbMode: $('#doNotDisturbMode').is(':checked'),
+                groupSimilarAlerts: $('#groupSimilarAlerts').is(':checked'),
+                autoHideAlerts: $('#autoHideAlerts').is(':checked')
+            };
+            
+            const defaultCriteria = {
+                defaultPriceMovement: $('#defaultPriceMovement').val(),
+                defaultVolumeTrigger: $('#defaultVolumeTrigger').val(),
+                defaultSMAperiod: $('#defaultSMAperiod').val(),
+                defaultRSIthreshold: $('#defaultRSIthreshold').val(),
+                defaultAlertDuration: $('#defaultAlertDuration').val(),
+                defaultAlertPriority: $('#defaultAlertPriority').val()
+            };
+            
+            const allSettings = {
+                generalSettings,
+                notificationSettings,
+                defaultCriteria,
+                exportDate: new Date().toISOString()
+            };
+            
+            // Convertir a JSON y descargar
+            const dataStr = JSON.stringify(allSettings, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'alert_settings_' + new Date().toISOString().split('T')[0] + '.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        });
+        
+        // Guardar cambios en formularios al enviar
+        $('#generalSettingsForm, #notificationSettingsForm, #defaultCriteriaForm').submit(function(e) {
+            e.preventDefault();
+            
+            // En una implementación real, se enviarían los datos al servidor
+            // Por ahora, solo simularemos una respuesta exitosa
+            
+            alert('Configuración guardada con éxito');
+            
+            // En un entorno real, podrías usar AJAX:
+            /*
+            $.ajax({
+                url: $(this).attr('action'),
+                method: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    alert('Configuración guardada con éxito');
+                },
+                error: function(xhr, status, error) {
+                    alert('Error al guardar la configuración: ' + error);
+                }
+            });
+            */
+        });
+    });
+</script>
+{% endblock %}
