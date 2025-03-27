@@ -2,33 +2,59 @@
 
 ## Introducción
 
-Este documento detalla cómo desarrollar addons para la aplicación DAS Trader Analyzer, explicando la arquitectura del sistema de addons, su integración con la aplicación principal y cómo crear nuevos addons de manera efectiva.
+Este documento detalla cómo desarrollar addons para la aplicación DAS Trader Analyzer, explicando la arquitectura del sistema de addons, su integración con la aplicación principal y cómo crear nuevos addons tanto de forma manual como usando la interfaz de usuario integrada.
 
 ## Arquitectura de la Aplicación
 
 DAS Trader Analyzer es una aplicación Flask modularizada que analiza datos de trading exportados desde DAS Trader. La estructura principal incluye:
 
-- **app.py**: Punto de entrada principal que inicializa la aplicación
+- **app.py**: Punto de entrada principal que inicializa la aplicación y mantiene una variable global `processed_data`
 - **routes/**: Contiene los blueprints para las diferentes secciones de la aplicación
 - **services/**: Servicios para procesamiento de datos, caché y manejo de archivos
 - **templates/**: Plantillas HTML para la interfaz de usuario
 - **static/**: Archivos estáticos (CSS, JavaScript, uploads)
 - **addons/**: Directorio donde se almacenan los addons
-- **addon_system.py**: Sistema central que gestiona el registro y carga de addons
+- **addon_system.py**: Sistema central que gestiona el registro, carga y creación de addons
 
 ## Sistema de Addons
 
-El sistema de addons permite extender la funcionalidad de la aplicación sin modificar el código principal. Está implementado a través de un registro centralizado que gestiona los addons disponibles.
+El sistema de addons permite extender la funcionalidad de la aplicación sin modificar el código principal. Está implementado a través de un registro centralizado que gestiona los addons disponibles y proporciona herramientas tanto programáticas como visuales para su creación y gestión.
 
 ### Estructura del Sistema
 
-1. **AddonRegistry**: Clase singleton en `addon_system.py` que mantiene un registro de todos los addons.
+1. **AddonRegistry**: Clase singleton en `addon_system.py` que mantiene un registro de todos los addons, con métodos para:
+   - Registrar addons
+   - Verificar duplicados de rutas
+   - Inicializar rutas en Flask
+   - Proporcionar elementos para la barra lateral
+
 2. **load_addons_from_directory()**: Función que carga automáticamente todos los addons desde el directorio `addons/`.
-3. **Integración con Flask**: Los addons se registran como blueprints de Flask.
+
+3. **create_addon_template()**: Función para generar automáticamente plantillas de nuevos addons.
+
+4. **Integración con Flask**: Los addons se registran como blueprints de Flask y se integran con el contexto global de la aplicación.
 
 ## Cómo Desarrollar un Nuevo Addon
 
-### 1. Crear el Archivo del Addon
+Existen dos métodos para crear un nuevo addon: manualmente (para desarrolladores) o mediante la interfaz de usuario (para usuarios finales).
+
+### Método 1: Crear un Addon desde la Interfaz de Usuario
+
+1. Navega a la opción "Gestionar Addons" en la barra lateral
+2. Completa el formulario con:
+   - **Nombre**: Nombre visible del addon
+   - **Ruta**: URL para acceder al addon (ej: `/mi-addon`)
+   - **Descripción**: Breve descripción de la funcionalidad
+   - **Icono**: Nombre del icono de FontAwesome sin el prefijo "fa-"
+3. Haz clic en "Crear Addon"
+4. Navega a "Recargar Addons" para activar el nuevo addon
+5. Modifica los archivos generados:
+   - `addons/mi_addon.py`: Para la lógica de negocio
+   - `templates/mi_addon.html`: Para la interfaz de usuario
+
+### Método 2: Crear un Addon Manualmente
+
+#### 1. Crear el Archivo del Addon
 
 Cada addon es un archivo Python (.py) ubicado en el directorio `addons/`. Por ejemplo: `addons/mi_nuevo_addon.py`.
 
@@ -41,13 +67,17 @@ from addon_system import AddonRegistry
 from flask import render_template, redirect, url_for, flash
 import json
 
-from config import Config
-from services.cache_manager import load_processed_data
-
 def mi_funcion_vista():
     """Función principal del addon"""
-    # Obtener datos procesados
-    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+    # Hay dos formas de obtener los datos procesados:
+    
+    # Método 1: Importando directamente desde app.py (recomendado)
+    from app import processed_data
+    
+    # Método 2: Cargando desde caché (alternativo)
+    # from config import Config
+    # from services.cache_manager import load_processed_data
+    # processed_data = load_processed_data(Config.DATA_CACHE_PATH)
     
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
@@ -80,7 +110,7 @@ def register_addon():
     AddonRegistry.register('mi_nuevo_addon', {
         'name': 'Mi Nuevo Addon',
         'description': 'Descripción de la funcionalidad',
-        'route': '/mi_ruta',
+        'route': '/mi-ruta',
         'view_func': mi_funcion_vista,
         'template': 'mi_nuevo_addon.html',
         'icon': 'chart-bar',  # Icono de FontAwesome
@@ -94,7 +124,7 @@ if __name__ != '__main__':
     register_addon()
 ```
 
-### 2. Crear la Plantilla HTML
+#### 2. Crear la Plantilla HTML
 
 Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejemplo: `templates/mi_nuevo_addon.html`.
 
@@ -103,7 +133,11 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
 
 {% block title %}Mi Nuevo Addon - Analizador de Trading DAS{% endblock %}
 
-{% block header %}Mi Nuevo Addon{% endblock %}
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Mi Nuevo Addon</h1>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -191,7 +225,7 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
 {% endblock %}
 ```
 
-### 3. Estructura del Registro de Addons
+### Estructura del Registro de Addons
 
 Al registrar un addon en el sistema, se debe proporcionar un diccionario con los siguientes datos:
 
@@ -211,7 +245,23 @@ AddonRegistry.register('nombre_clave', {
 
 ## Acceso a Datos
 
-Los addons tienen acceso a los datos procesados a través del servicio de caché:
+Los addons tienen dos formas de acceder a los datos procesados:
+
+### Método 1: Variable Global (Recomendado)
+
+```python
+from app import processed_data
+
+# Verificar que hay datos
+if processed_data is None:
+    flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
+    return redirect(url_for('main.index'))
+
+# Acceder a componentes específicos
+processed_orders = processed_data.get('processed_orders', [])
+```
+
+### Método 2: Servicio de Caché
 
 ```python
 from config import Config
@@ -220,6 +270,15 @@ from services.cache_manager import load_processed_data
 # Cargar datos procesados
 processed_data = load_processed_data(Config.DATA_CACHE_PATH)
 
+# Verificar que hay datos
+if processed_data is None:
+    flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
+    return redirect(url_for('main.index'))
+```
+
+### Componentes Disponibles en los Datos Procesados
+
+```python
 # Acceder a componentes específicos
 processed_orders = processed_data.get('processed_orders', [])
 metrics = processed_data.get('metrics', {})
@@ -229,7 +288,108 @@ buysell_performance = processed_data.get('buysell_performance', [])
 equity_curve = processed_data.get('equity_curve', [])
 ```
 
-## Ejemplos de Addons
+## Componentes Avanzados Disponibles
+
+El sistema incluye varias clases para análisis técnico, detección de patrones, backtesting y gestión de riesgo que puedes utilizar en tus addons.
+
+### Indicadores Técnicos
+
+```python
+from addons.trading_alert_addon import TradingIndicators
+
+# Calcular Media Móvil Simple (SMA)
+sma_values = TradingIndicators.sma(price_data, period=20)
+
+# Calcular Media Móvil Exponencial (EMA)
+ema_values = TradingIndicators.ema(price_data, period=20)
+
+# Calcular RSI
+rsi_values = TradingIndicators.rsi(price_data, period=14)
+
+# Calcular MACD
+macd_result = TradingIndicators.macd(price_data, fast_period=12, slow_period=26, signal_period=9)
+macd_line = macd_result['macd_line']
+signal_line = macd_result['signal_line']
+histogram = macd_result['histogram']
+
+# Calcular Bandas de Bollinger
+bollinger = TradingIndicators.bollinger_bands(price_data, period=20, num_std=2)
+middle_band = bollinger['middle']
+upper_band = bollinger['upper']
+lower_band = bollinger['lower']
+
+# Calcular niveles de soporte y resistencia
+levels = TradingIndicators.support_resistance(price_data, window=10)
+resistance_levels = levels['resistance']
+support_levels = levels['support']
+```
+
+### Detección de Patrones
+
+```python
+from addons.trading_alert_addon import TradingPatterns
+
+# Detectar patrón de doble techo
+is_double_top, first_peak_idx, second_peak_idx = TradingPatterns.detect_double_top(price_data, tolerance=0.02)
+
+# Detectar patrón de doble suelo
+is_double_bottom, first_bottom_idx, second_bottom_idx = TradingPatterns.detect_double_bottom(price_data, tolerance=0.02)
+
+# Detectar patrón de cabeza y hombros
+is_head_shoulders, peak_indices = TradingPatterns.detect_head_and_shoulders(price_data, tolerance=0.03)
+```
+
+### Backtesting de Estrategias
+
+```python
+from addons.trading_alert_addon import BacktestEngine
+
+# Ejecutar backtest de estrategia de cruce de medias móviles
+results = BacktestEngine.test_strategy(
+    price_data,
+    BacktestEngine.sma_crossover_strategy, 
+    short_period=20,
+    long_period=50
+)
+
+# Ejecutar backtest de estrategia de RSI
+results = BacktestEngine.test_strategy(
+    price_data,
+    BacktestEngine.rsi_strategy, 
+    period=14,
+    overbought=70,
+    oversold=30
+)
+
+# Acceder a los resultados
+total_trades = results['total_trades']
+win_rate = results['win_rate']
+max_drawdown = results['max_drawdown']
+total_return = results['total_return']
+equity_curve = results['equity_curve']
+```
+
+### Gestión de Riesgo
+
+```python
+from addons.trading_alert_addon import RiskManager
+
+# Calcular tamaño de posición según gestión de riesgo
+position_info = RiskManager.calculate_position_size(
+    account_size=10000,       # Tamaño de cuenta en dólares
+    risk_percentage=1,        # Porcentaje de riesgo (1%)
+    entry_price=150.75,       # Precio de entrada
+    stop_loss=148.50          # Precio de stop loss
+)
+
+# Acceder a la información calculada
+position_size = position_info['position_size']       # Cantidad de acciones
+position_value = position_info['position_value']     # Valor total de la posición
+risk_amount = position_info['risk_amount']           # Cantidad en riesgo (dólares)
+direction = position_info['direction']               # LONG o SHORT
+```
+
+## Ejemplos de Addons Avanzados
 
 ### Ejemplo 1: Análisis por Día de la Semana
 
@@ -246,9 +406,6 @@ from addon_system import AddonRegistry
 from flask import render_template, redirect, url_for, flash
 import json
 from datetime import datetime
-
-from config import Config
-from services.cache_manager import load_processed_data
 
 def analyze_by_weekday(orders):
     """Analiza rendimiento por día de la semana"""
@@ -310,8 +467,8 @@ def analyze_by_weekday(orders):
 
 def weekday_analysis_view():
     """Vista para el addon de análisis por día de la semana"""
-    # Obtener datos procesados usando load_processed_data
-    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+    # Obtener datos procesados desde la variable global
+    from app import processed_data
     
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
@@ -364,248 +521,96 @@ if __name__ != '__main__':
     register_addon()
 ```
 
-### Ejemplo 2: Sistema de Alertas de Trading
+### Ejemplo 2: Addon Avanzado con Múltiples Rutas
 
-Este addon implementa un sistema de alertas basado en condiciones personalizables.
-
-**Archivo: addons/trading_alert_addon.py**
+Para addons más complejos con múltiples rutas, es mejor utilizar un Blueprint de Flask:
 
 ```python
 """
-Addon: Trading Alert Bot
-Descripción: Sistema de alertas de trading basado en condiciones personalizables
+Addon: Analytics Suite
+Descripción: Suite de herramientas avanzadas de análisis de trading
 """
-from addon_system import AddonRegistry
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 import json
-from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+from addon_system import AddonRegistry
+from addons.trading_alert_addon import TradingIndicators, BacktestEngine
 
-from config import Config
-from services.cache_manager import load_processed_data
+# Crear un blueprint para el addon
+analytics_suite_bp = Blueprint('analytics_suite', __name__)
 
-# Crear un blueprint específico para las alertas
-trading_alerts_bp = Blueprint('trading_alerts', __name__)
-
-class TradingAlertSystem:
-    def __init__(self):
-        self.alerts = []
-        self.triggered_alerts = []
-
-    def add_alert(self, name, conditions, description):
-        """Añade una nueva alerta con condiciones específicas"""
-        alert = {
-            'id': len(self.alerts) + 1,
-            'name': name,
-            'conditions': conditions,
-            'description': description,
-            'created_at': datetime.now(),
-            'active': True
-        }
-        self.alerts.append(alert)
-        return alert
-
-    def check_alerts(self, orders):
-        """Verifica todas las alertas contra las órdenes recientes"""
-        self.triggered_alerts = []
-        
-        for alert in self.alerts:
-            if not alert['active']:
-                continue
-            
-            # Filtrar órdenes según condiciones de la alerta
-            matching_orders = self._filter_orders(orders, alert['conditions'])
-            
-            if matching_orders:
-                trigger_info = {
-                    'alert': alert,
-                    'matching_orders': matching_orders,
-                    'triggered_at': datetime.now()
-                }
-                self.triggered_alerts.append(trigger_info)
-        
-        return self.triggered_alerts
-
-    def _filter_orders(self, orders, conditions):
-        """Filtra órdenes basándose en condiciones específicas"""
-        matched_orders = []
-        
-        for order in orders:
-            match = True
-            
-            # Condiciones de símbolo
-            if 'symbol' in conditions:
-                match = match and order['symb'] in conditions['symbol']
-            
-            # Condiciones de tipo de operación (compra/venta)
-            if 'side' in conditions:
-                match = match and order['B/S'] in conditions['side']
-            
-            # Condiciones de cantidad
-            if 'min_quantity' in conditions:
-                match = match and order['qty'] >= conditions['min_quantity']
-            
-            # Condiciones de precio
-            if 'price_range' in conditions:
-                min_price, max_price = conditions['price_range']
-                match = match and min_price <= order['price'] <= max_price
-            
-            if match:
-                matched_orders.append(order)
-        
-        return matched_orders
-
-    def get_active_alerts(self):
-        """Obtiene todas las alertas activas"""
-        return [alert for alert in self.alerts if alert['active']]
-
-    def disable_alert(self, alert_id):
-        """Desactiva una alerta específica"""
-        for alert in self.alerts:
-            if alert['id'] == alert_id:
-                alert['active'] = False
-                return True
-        return False
-
-# Instancia global del sistema de alertas
-alert_system = TradingAlertSystem()
-
-@trading_alerts_bp.route('/trading-alerts')
-def trading_alerts():
-    """Vista principal para gestionar alertas de trading"""
-    # Obtener datos procesados
-    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+@analytics_suite_bp.route('/analytics')
+def analytics_main():
+    """Vista principal del addon"""
+    from app import processed_data
     
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('main.index'))
     
-    # Obtener órdenes procesadas
-    processed_orders = processed_data.get('processed_orders', [])
-    
-    # Verificar alertas
-    triggered_alerts = alert_system.check_alerts(processed_orders)
-    
-    # Obtener alertas activas
-    active_alerts = alert_system.get_active_alerts()
-    
-    return render_template(
-        'trading_alerts.html',
-        triggered_alerts=triggered_alerts,
-        active_alerts=active_alerts,
-        processed_data=processed_data
-    )
+    # Implementación...
+    return render_template('analytics_suite.html', processed_data=processed_data)
 
-@trading_alerts_bp.route('/create-alert', methods=['GET', 'POST'])
-def create_alert():
-    """Vista para crear nuevas alertas"""
-    # Obtener datos procesados
-    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+@analytics_suite_bp.route('/analytics/performance')
+def performance_metrics():
+    """Métricas avanzadas de rendimiento"""
+    from app import processed_data
     
-    # Verificar si hay datos cargados
     if processed_data is None:
         flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
         return redirect(url_for('main.index'))
     
-    if request.method == 'POST':
-        # Recoger datos del formulario
-        alert_name = request.form.get('name')
-        symbol = request.form.getlist('symbol')
-        side = request.form.getlist('side')
-        min_quantity = float(request.form.get('min_quantity', 0))
-        min_price = float(request.form.get('min_price', 0))
-        max_price = float(request.form.get('max_price', float('inf')))
-        
-        # Construir condiciones
-        conditions = {}
-        if symbol:
-            conditions['symbol'] = symbol
-        if side:
-            conditions['side'] = side
-        if min_quantity > 0:
-            conditions['min_quantity'] = min_quantity
-        if min_price > 0 or max_price < float('inf'):
-            conditions['price_range'] = (min_price, max_price)
-        
-        # Crear alerta
-        new_alert = alert_system.add_alert(
-            name=alert_name,
-            conditions=conditions,
-            description=f"Alerta para {', '.join(symbol)} con condiciones específicas"
-        )
-        
-        flash(f'Alerta "{alert_name}" creada exitosamente', 'success')
-        return redirect(url_for('trading_alerts.trading_alerts'))
-    
-    # Obtener símbolos únicos para mostrar en el formulario
-    unique_symbols = set()
-    for order in processed_data.get('processed_orders', []):
-        if 'symb' in order and order['symb']:
-            unique_symbols.add(order['symb'])
-    
-    return render_template(
-        'create_alert.html',
-        symbols=sorted(list(unique_symbols)),
-        processed_data=processed_data
-    )
+    # Implementación...
+    return render_template('analytics_performance.html', processed_data=processed_data)
 
-@trading_alerts_bp.route('/disable-alert', methods=['POST'])
-def disable_alert():
-    """API para desactivar una alerta"""
-    data = request.json
-    if not data or 'alert_id' not in data:
-        return jsonify({'success': False, 'message': 'Datos inválidos'})
+@analytics_suite_bp.route('/analytics/correlations')
+def correlations():
+    """Análisis de correlaciones"""
+    from app import processed_data
     
-    alert_id = data['alert_id']
-    success = alert_system.disable_alert(alert_id)
-    return jsonify({'success': success})
+    if processed_data is None:
+        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Implementación...
+    return render_template('analytics_correlations.html', processed_data=processed_data)
+
+@analytics_suite_bp.route('/analytics/api/data', methods=['GET'])
+def api_get_data():
+    """API para obtener datos en formato JSON"""
+    from app import processed_data
+    
+    if processed_data is None:
+        return jsonify({'error': 'No hay datos disponibles'})
+    
+    data_type = request.args.get('type', 'equity')
+    
+    if data_type == 'equity':
+        return jsonify(processed_data.get('equity_curve', []))
+    elif data_type == 'symbols':
+        return jsonify(processed_data.get('symbol_performance', []))
+    else:
+        return jsonify({'error': 'Tipo de datos no válido'})
 
 def register_addon():
-    """Registra el addon de alertas de trading"""
-    AddonRegistry.register('trading_alerts', {
-        'name': 'Trading Alerts',
-        'description': 'Sistema de alertas de trading con condiciones personalizables',
-        'route': '/trading-alerts',
-        'view_func': trading_alerts,
-        'template': 'trading_alerts.html',
-        'icon': 'bell',
+    """Registra este addon en el sistema"""
+    AddonRegistry.register('analytics_suite', {
+        'name': 'Analytics Suite',
+        'description': 'Suite de herramientas avanzadas de análisis de trading',
+        'route': '/analytics',
+        'view_func': analytics_main,
+        'template': 'analytics_suite.html',
+        'icon': 'chart-line',
         'active': True,
         'version': '1.0.0',
-        'author': 'DAS Trader Analyzer Team'
+        'author': 'DAS Trader Analyzer Team',
+        'blueprint': analytics_suite_bp  # Pasar blueprint directamente
     })
 
 # Registrar automáticamente al importar
 if __name__ != '__main__':
     register_addon()
-```
-
-## Trabajando con Blueprints de Flask
-
-Si tu addon requiere múltiples rutas, es mejor implementarlo como un Blueprint de Flask:
-
-```python
-from flask import Blueprint
-
-# Crear un blueprint para el addon
-mi_addon_bp = Blueprint('mi_addon', __name__)
-
-@mi_addon_bp.route('/mi-ruta')
-def mi_vista_principal():
-    # Implementación...
-    pass
-
-@mi_addon_bp.route('/mi-ruta/detalle/<int:id>')
-def detalle(id):
-    # Implementación...
-    pass
-
-# Al registrar el addon:
-def register_addon():
-    AddonRegistry.register('mi_addon', {
-        # Configuración normal...
-        'view_func': mi_vista_principal,
-        # Opcional: pasar blueprint directamente
-        'blueprint': mi_addon_bp
-    })
 ```
 
 ## Mejores Prácticas
@@ -617,6 +622,9 @@ def register_addon():
 5. **Encapsulación**: Evita modificar datos globales directamente.
 6. **Consistencia Visual**: Mantén un estilo coherente con el resto de la aplicación.
 7. **Validación de Datos**: Siempre valida los datos antes de procesarlos.
+8. **Blueprints**: Para addons complejos, usa Blueprints de Flask.
+9. **Seguridad**: No ejecutes código no confiable o que pueda comprometer la aplicación.
+10. **Pruebas**: Implementa pruebas unitarias para tu addon.
 
 ## Depuración de Addons
 
@@ -634,19 +642,184 @@ def mi_funcion():
     logger.error("Error crítico")
 ```
 
+También puedes aprovechar los mensajes de depuración incorporados en la aplicación:
+
+```python
+# Agregar mensajes de depuración
+print("[DEBUG] Entrando en mi_funcion_vista()")
+print(f"[DEBUG] Processed data: {processed_data is not None}")
+```
+
+## Uso de Componentes Avanzados
+
+### Crear un Addon con Indicadores Técnicos
+
+```python
+"""
+Addon: Indicadores Técnicos
+Descripción: Visualización de indicadores técnicos para análisis de precio
+"""
+from addon_system import AddonRegistry
+from flask import render_template, redirect, url_for, flash, request
+import json
+import pandas as pd
+import numpy as np
+from addons.trading_alert_addon import TradingIndicators
+
+def technical_indicators_view():
+    """Vista principal para el addon de indicadores técnicos"""
+    from app import processed_data
+    
+    if processed_data is None:
+        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Obtener parámetros
+    symbol = request.args.get('symbol', None)
+    indicator = request.args.get('indicator', 'sma')
+    
+    # Obtener símbolos disponibles
+    symbols = set()
+    for order in processed_data.get('processed_orders', []):
+        if 'symb' in order and order['symb']:
+            symbols.add(order['symb'])
+    symbols = sorted(list(symbols))
+    
+    # Si no se especifica un símbolo, usar el primero disponible
+    if not symbol and symbols:
+        symbol = symbols[0]
+    
+    if not symbol:
+        flash('No hay símbolos disponibles para análisis', 'warning')
+        return render_template(
+            'technical_indicators.html',
+            symbols=symbols,
+            processed_data=processed_data
+        )
+    
+    # Filtrar órdenes por símbolo
+    symbol_orders = [order for order in processed_data.get('processed_orders', []) 
+                    if order.get('symb') == symbol]
+    
+    # Ordenar por fecha
+    symbol_orders = sorted(symbol_orders, key=lambda x: x.get('time', ''))
+    
+    # Crear serie de precios para análisis técnico
+    if symbol_orders:
+        # Crear una serie de precios básica para análisis
+        try:
+            # Extraer fechas y precios
+            dates = []
+            prices = []
+            for order in symbol_orders:
+                try:
+                    date_str = order.get('time', '')
+                    dates.append(date_str)
+                    prices.append(order.get('price', 0))
+                except:
+                    continue
+            
+            # Crear serie de pandas
+            price_data = pd.Series(prices, index=dates)
+            
+            # Calcular indicadores según selección
+            indicators_data = {}
+            
+            if indicator == 'sma':
+                # Calcular SMA con diferentes períodos
+                indicators_data['sma20'] = TradingIndicators.sma(price_data, period=20).tolist()
+                indicators_data['sma50'] = TradingIndicators.sma(price_data, period=50).tolist()
+                indicators_data['sma200'] = TradingIndicators.sma(price_data, period=200).tolist()
+            
+            elif indicator == 'ema':
+                # Calcular EMA con diferentes períodos
+                indicators_data['ema12'] = TradingIndicators.ema(price_data, period=12).tolist()
+                indicators_data['ema26'] = TradingIndicators.ema(price_data, period=26).tolist()
+                indicators_data['ema50'] = TradingIndicators.ema(price_data, period=50).tolist()
+            
+            elif indicator == 'bollinger':
+                # Calcular Bandas de Bollinger
+                bollinger = TradingIndicators.bollinger_bands(price_data, period=20, num_std=2)
+                indicators_data['middle'] = bollinger['middle'].tolist()
+                indicators_data['upper'] = bollinger['upper'].tolist()
+                indicators_data['lower'] = bollinger['lower'].tolist()
+            
+            elif indicator == 'rsi':
+                # Calcular RSI
+                indicators_data['rsi'] = TradingIndicators.rsi(price_data, period=14).tolist()
+            
+            elif indicator == 'macd':
+                # Calcular MACD
+                macd_data = TradingIndicators.macd(price_data, fast_period=12, slow_period=26, signal_period=9)
+                indicators_data['macd'] = macd_data['macd_line'].tolist()
+                indicators_data['signal'] = macd_data['signal_line'].tolist()
+                indicators_data['histogram'] = macd_data['histogram'].tolist()
+            
+            # Preparar datos para gráficos
+            chart_data = {
+                'dates': dates,
+                'prices': prices,
+                'indicators': indicators_data,
+                'indicator_type': indicator
+            }
+            
+            # Convertir a JSON para usar en gráficos
+            chart_json = json.dumps(chart_data)
+            
+            return render_template(
+                'technical_indicators.html',
+                symbol=symbol,
+                symbols=symbols,
+                chart_data=chart_data,
+                chart_json=chart_json,
+                indicator=indicator,
+                processed_data=processed_data
+            )
+            
+        except Exception as e:
+            flash(f'Error al calcular indicadores: {str(e)}', 'error')
+    
+    return render_template(
+        'technical_indicators.html',
+        symbol=symbol,
+        symbols=symbols,
+        indicator=indicator,
+        processed_data=processed_data
+    )
+
+def register_addon():
+    """Registra este addon en el sistema"""
+    AddonRegistry.register('technical_indicators', {
+        'name': 'Indicadores Técnicos',
+        'description': 'Visualización de indicadores técnicos para análisis de precio',
+        'route': '/technical-indicators',
+        'view_func': technical_indicators_view,
+        'template': 'technical_indicators.html',
+        'icon': 'chart-line',
+        'active': True,
+        'version': '1.0.0',
+        'author': 'DAS Trader Analyzer Team'
+    })
+
+# Registrar automáticamente al importar
+if __name__ != '__main__':
+    register_addon()
+```
+
 ## Conclusión
 
-El sistema de addons de DAS Trader Analyzer proporciona una forma flexible y potente de extender la funcionalidad de la aplicación. Siguiendo esta guía, puedes crear addons que se integren perfectamente con la aplicación principal y proporcionen nuevas características a los usuarios.
+El sistema de addons de DAS Trader Analyzer proporciona una forma flexible y potente de extender la funcionalidad de la aplicación. Con los nuevos componentes avanzados y la interfaz de gestión, puedes crear fácilmente addons personalizados para mejorar tu análisis de trading.
 
 ## Referencia Rápida
 
 ### Estructura de Archivos
-- `addon_system.py`: Sistema central de addons
+- `addon_system.py`: Sistema central de addons con registro y creación de plantillas
 - `addons/`: Directorio de addons
 - `templates/`: Directorio de plantillas HTML
 
-### Función Principal de Registro
+### Métodos Principales
 ```python
+# Registrar addon
 AddonRegistry.register('nombre_clave', {
     'name': 'Nombre Visible',
     'description': 'Descripción',
@@ -658,13 +831,36 @@ AddonRegistry.register('nombre_clave', {
     'version': '1.0.0',
     'author': 'Autor'
 })
+
+# Cargar addons desde directorio
+load_addons_from_directory()
+
+# Crear plantilla de addon
+create_addon_template(name, route, description, icon)
 ```
 
 ### Acceso a Datos Procesados
 ```python
+# Método 1: Variable global
+from app import processed_data
+
+# Método 2: Caché
 from config import Config
 from services.cache_manager import load_processed_data
-
 processed_data = load_processed_data(Config.DATA_CACHE_PATH)
-processed_orders = processed_data.get('processed_orders', [])
+```
+
+### Utilidades para Análisis Técnico
+```python
+# Importar clases de utilidades
+from addons.trading_alert_addon import TradingIndicators, TradingPatterns, BacktestEngine, RiskManager
+
+# Ejemplo: Calcular SMA
+sma_values = TradingIndicators.sma(price_data, period=20)
+
+# Ejemplo: Ejecutar backtest
+results = BacktestEngine.test_strategy(price_data, BacktestEngine.sma_crossover_strategy, short_period=20, long_period=50)
+
+# Ejemplo: Calcular posición
+position_info = RiskManager.calculate_position_size(account_size=10000, risk_percentage=1, entry_price=150, stop_loss=145)
 ```
