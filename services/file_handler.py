@@ -47,28 +47,43 @@ def copy_file(source_path, destination_path):
         print(f"Error copiando archivo: {e}")
         return False
 
-def validate_csv_files(file_paths):
+def validate_trades_csv(trades_path):
     """
-    Valida que los archivos CSV existan y no estén vacíos
+    Valida específicamente el archivo Trades.csv
     
     Args:
-        file_paths (list): Lista de rutas de archivos a validar
+        trades_path (str): Ruta del archivo Trades.csv
     
     Returns:
-        bool: True si todos los archivos son válidos, False en caso contrario
+        bool: True si el archivo es válido, False en caso contrario
     """
-    for path in file_paths:
-        # Verificar que el archivo existe
-        if not os.path.exists(path):
-            print(f"Archivo no encontrado: {path}")
-            return False
-        
-        # Verificar que el archivo no esté vacío
-        if os.path.getsize(path) == 0:
-            print(f"Archivo vacío: {path}")
-            return False
+    # Verificar que el archivo existe
+    if not os.path.exists(trades_path):
+        print(f"Archivo Trades.csv no encontrado: {trades_path}")
+        return False
     
-    return True
+    # Verificar que el archivo no esté vacío
+    if os.path.getsize(trades_path) == 0:
+        print(f"Archivo Trades.csv vacío: {trades_path}")
+        return False
+    
+    # Verificar que el archivo sea un CSV válido
+    try:
+        with open(trades_path, 'r', encoding='utf-8') as f:
+            # Leer primera línea (encabezados)
+            headers = f.readline().strip().split(',')
+            
+            # Verificar columnas mínimas requeridas
+            required_columns = ['TradeID', 'OrderID', 'B/S', 'symb', 'qty', 'price', 'time']
+            for col in required_columns:
+                if col not in headers:
+                    print(f"Columna requerida '{col}' no encontrada en Trades.csv")
+                    return False
+        
+        return True
+    except Exception as e:
+        print(f"Error validando Trades.csv: {e}")
+        return False
 
 def get_files_in_directory(directory, extension='.csv'):
     """
