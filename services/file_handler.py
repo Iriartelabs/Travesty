@@ -67,27 +67,10 @@ def validate_csv_files(file_paths):
         if os.path.getsize(path) == 0:
             print(f"Archivo vacío: {path}")
             return False
+        
+        # Verificar que el archivo tenga extensión .csv
+        if not path.lower().endswith('.csv'):
+            print(f"El archivo no es un CSV: {path}")
+            return False
     
     return True
-
-def get_files_in_directory(directory, extension='.csv'):
-    """
-    Obtiene una lista de archivos con una extensión específica en un directorio
-    
-    Args:
-        directory (str): Ruta del directorio
-        extension (str, optional): Extensión de archivos a buscar. Por defecto '.csv'
-    
-    Returns:
-        list: Lista de rutas completas de archivos con la extensión especificada
-    """
-    try:
-        # Obtener todos los archivos en el directorio con la extensión especificada
-        return [
-            os.path.join(directory, filename) 
-            for filename in os.listdir(directory) 
-            if filename.endswith(extension)
-        ]
-    except Exception as e:
-        print(f"Error obteniendo archivos: {e}")
-        return []

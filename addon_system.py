@@ -1,299 +1,183 @@
-"""
-Sistema de addons para DAS Trader Analyzer
-"""
 import os
 import importlib.util
 import inspect
-import logging
-from flask import Blueprint, url_for
-
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from flask import Blueprint, Flask, render_template, url_for
 
 class AddonRegistry:
-    """Registro central de addons"""
-    _addons = {}
-    _routes = {}
-    _sidebar_items = []
-    _initialized = False
-    _app = None  # Referencia a la aplicación Flask
+    _instance = None
+    addons = {}
     
     @classmethod
-    def register(cls, name, metadata):
-        """Registra un nuevo addon en el sistema"""
-        # Verificar si ya existe un addon con la misma ruta
-        for existing_name, existing_meta in cls._addons.items():
-            if existing_meta['route'] == metadata['route']:
-                # Ruta duplicada detectada, actualizar en lugar de crear nuevo
-                logger.warning(f"Ruta '{metadata['route']}' ya registrada. Actualizando addon '{name}'.")
-                
-                # Actualizar addon existente
-                cls._addons[existing_name] = metadata
-                
-                # Actualizar entry en sidebar items
-                for i, item in enumerate(cls._sidebar_items):
-                    if item['route'] == metadata['route']:
-                        cls._sidebar_items[i] = {
-                            'name': metadata['name'],
-                            'route': metadata['route'],
-                            'icon': metadata['icon']
-                        }
-                
-                return True
-        
-        # Verificar si el nombre ya existe
-        if name in cls._addons:
-            logger.warning(f"El addon '{name}' ya está registrado. Se sobrescribirá.")
-            
-            # Eliminar entradas antiguas de la barra lateral
-            cls._sidebar_items = [item for item in cls._sidebar_items 
-                                 if item['name'] != cls._addons[name]['name']]
-        
-        # Continuar con el registro normal
-        cls._addons[name] = metadata
-        cls._routes[metadata['route']] = metadata['view_func']
-        
-        # Agregar a la barra lateral si está activo
-        if metadata.get('active', True):
-            cls._sidebar_items.append({
-                'name': metadata['name'],
-                'route': metadata['route'],
-                'icon': metadata['icon']
-            })
-        
-        # Si la aplicación ya está inicializada, intentar registrar la ruta
-        if cls._initialized and cls._app and not cls._app.debug:
-            try:
-                blueprint = Blueprint(name, __name__, template_folder='templates')
-                blueprint.route(metadata['route'])(metadata['view_func'])
-                cls._app.register_blueprint(blueprint)
-                logger.info(f"Ruta '{metadata['route']}' registrada dinámicamente para el addon '{name}'")
-            except Exception as e:
-                logger.error(f"No se pudo registrar la ruta dinámicamente: {e}")
-        
-        logger.info(f"Addon '{name}' registrado correctamente.")
-        return True
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
     
     @classmethod
-    def get_addon(cls, name):
-        """Obtiene la información de un addon por su nombre"""
-        return cls._addons.get(name)
+    def register(cls, addon_id, addon_info):
+        # Añadir el addon al registro
+        cls.addons[addon_id] = addon_info
+    
+    @classmethod
+    def unregister(cls, addon_id):
+        """
+        Elimina un addon del registro
+        
+        Args:
+            addon_id (str): ID del addon a eliminar
+        """
+        if addon_id in cls.addons:
+            del cls.addons[addon_id]
+    
+    @classmethod
+    def get_addons(cls):
+        return cls.addons
+    
+    @classmethod
+    def get_addon(cls, addon_id):
+        return cls.addons.get(addon_id)
     
     @classmethod
     def get_all_addons(cls):
-        """Obtiene todos los addons registrados"""
-        return cls._addons
+        """Método para obtener todos los addons registrados (para compatibilidad)"""
+        return cls.get_addons()
     
     @classmethod
     def get_sidebar_items(cls):
-        """Obtiene los elementos para mostrar en la barra lateral"""
-        return sorted(cls._sidebar_items, key=lambda x: x['name'])
-    
-    @classmethod
-    def get_view_function(cls, route):
-        """Obtiene la función de vista para una ruta específica"""
-        return cls._routes.get(route)
+        """Devuelve los elementos para mostrar en la barra lateral"""
+        sidebar_items = []
+        
+        for addon_id, addon_info in cls.addons.items():
+            # Solo incluir addons activos
+            if addon_info.get('active', True):
+                # Construir URL si no está definida
+                route = addon_info.get('route', f'/{addon_id}')
+                
+                # Crear el elemento para la barra lateral
+                sidebar_item = {
+                    'name': addon_info.get('name', addon_id),
+                    'description': addon_info.get('description', ''),
+                    'icon': addon_info.get('icon', 'puzzle-piece'),
+                    'route': route,
+                    'id': addon_id
+                }
+                
+                sidebar_items.append(sidebar_item)
+        
+        return sidebar_items
     
     @classmethod
     def initialize(cls, app):
-        """Inicializa el sistema de addons, registrando las rutas en Flask"""
-        cls._app = app  # Guardar referencia a la aplicación
-        
-        if cls._initialized:
-            logger.warning("El sistema de addons ya está inicializado.")
-            return
-        
-        # Registrar cada addon como un Blueprint
-        for name, metadata in cls._addons.items():
-            route = metadata['route']
-            view_func = metadata['view_func']
-            
-            # Asegurar que la ruta comienza con /
-            if not route.startswith('/'):
-                route = '/' + route
-                metadata['route'] = route
-            
-            # Crear y registrar el blueprint
-            blueprint_name = f"addon_{name}"
-            blueprint = Blueprint(blueprint_name, __name__, template_folder='templates')
-            blueprint.route(route)(view_func)
-            try:
-                app.register_blueprint(blueprint)
-                logger.info(f"Ruta '{route}' registrada para el addon '{name}'")
-            except Exception as e:
-                logger.error(f"Error al registrar la ruta '{route}' para addon '{name}': {e}")
-        
-        # Añadir la lista de addons al contexto global de las plantillas
-        @app.context_processor
-        def inject_addons():
-            return {
-                'sidebar_items': cls.get_sidebar_items(),
-                'addons': cls._addons
-            }
-        
-        cls._initialized = True
-        logger.info(f"Sistema de addons inicializado con {len(cls._addons)} addons")
+        """Método legacy para compatibilidad con código existente"""
+        # Iterar sobre todos los addons registrados
+        for addon_id, addon_info in cls.addons.items():
+            # Si el addon tiene un blueprint, registrarlo en la aplicación
+            if 'blueprint' in addon_info and addon_info['blueprint'] is not None:
+                app.register_blueprint(addon_info['blueprint'])
+            else:
+                # Crear un blueprint para el addon
+                bp = Blueprint(addon_id, __name__)
+                
+                # Registrar la ruta principal
+                bp.add_url_rule(
+                    addon_info['route'],
+                    view_func=addon_info['view_func'],
+                    endpoint=addon_id
+                )
+                
+                # Registrar el blueprint en la aplicación
+                app.register_blueprint(bp)
 
-def load_addons_from_directory(directory='addons'):
-    """Carga automáticamente todos los addons desde un directorio"""
-    if not os.path.exists(directory):
-        logger.warning(f"El directorio de addons '{directory}' no existe.")
-        os.makedirs(directory)
-        # Crear un archivo __init__.py para marcar como paquete
-        with open(os.path.join(directory, '__init__.py'), 'w') as f:
-            f.write('# Paquete de addons para DAS Trader Analyzer')
-        logger.info(f"Directorio de addons '{directory}' creado.")
+def custom_render_template(addon_id, template_name, **context):
+    """Renderiza una plantilla desde la carpeta ui/ del addon"""
+    addon_info = AddonRegistry.get_addon(addon_id)
+    if not addon_info:
+        raise ValueError(f"No se encontró el addon con ID: {addon_id}")
+    
+    # Construir la ruta a la plantilla
+    template_path = f"addons/{addon_id}/ui/{template_name}"
+    
+    return render_template(template_path, **context)
+
+# Función para compatibilidad con código existente
+def create_addon_template(template_name, **context):
+    """Función legacy para compatibilidad - renderiza una plantilla de addon desde la carpeta templates/"""
+    return render_template(template_name, **context)
+
+def load_addons_from_directory(app=None, addons_dir='addons'):
+    """Carga todos los addons desde la estructura de directorios
+    
+    Estructura esperada:
+    addons/
+        nombre_addon/
+            src/
+                nombre_addon.py  # Archivo principal del addon
+            ui/
+                nombre_addon.html  # Plantilla HTML del addon
+    """
+    # Obtener la lista de carpetas de addons (excluyendo __pycache__ y archivos)
+    addon_folders = []
+    try:
+        if not os.path.exists(addons_dir):
+            os.makedirs(addons_dir, exist_ok=True)
+            print(f"Creado directorio de addons: {addons_dir}")
+            return
+            
+        addon_folders = [f for f in os.listdir(addons_dir) 
+                       if os.path.isdir(os.path.join(addons_dir, f)) and 
+                       not f.startswith('__')]
+    except FileNotFoundError:
+        print(f"Directorio de addons no encontrado: {addons_dir}")
         return
     
-    # Asegurar que existe el __init__.py para que sea un paquete
-    init_path = os.path.join(directory, '__init__.py')
-    if not os.path.exists(init_path):
-        with open(init_path, 'w') as f:
-            f.write('# Paquete de addons para DAS Trader Analyzer')
-    
-    # Buscar archivos Python en el directorio
-    addon_files = [f for f in os.listdir(directory) 
-                  if f.endswith('.py') and f != '__init__.py']
-    
-    loaded_count = 0
-    for filename in addon_files:
-        module_name = filename[:-3]  # Quitar .py
-        module_path = os.path.join(directory, filename)
+    for addon_folder in addon_folders:
+        # Intentar cargar desde la nueva estructura
+        addon_path = os.path.join(addons_dir, addon_folder, 'src', f'{addon_folder}.py')
+        
+        # Si no existe, intentar con la estructura antigua
+        if not os.path.exists(addon_path):
+            addon_path = os.path.join(addons_dir, f'{addon_folder}.py')
+            if not os.path.exists(addon_path):
+                continue
         
         try:
             # Cargar el módulo dinámicamente
-            spec = importlib.util.spec_from_file_location(module_name, module_path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            spec = importlib.util.spec_from_file_location(addon_folder, addon_path)
+            addon_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(addon_module)
             
-            # Verificar si tiene función de registro
-            if hasattr(module, 'register_addon'):
-                module.register_addon()
-                loaded_count += 1
-                logger.info(f"Addon '{module_name}' cargado correctamente.")
-            else:
-                logger.warning(f"El archivo '{filename}' no tiene función register_addon().")
-        
+            # El addon debe registrarse a sí mismo durante la importación
+            print(f"Addon cargado: {addon_folder}")
         except Exception as e:
-            logger.error(f"Error al cargar el addon '{module_name}': {str(e)}")
+            print(f"Error al cargar el addon {addon_folder}: {str(e)}")
     
-    logger.info(f"Se cargaron {loaded_count} addons de {len(addon_files)} archivos.")
-
-def create_addon_template(name, route, description, icon="chart-bar"):
-    """Crea una plantilla para un nuevo addon"""
-    if not os.path.exists('addons'):
-        os.makedirs('addons')
-    
-    # Normalizar el nombre
-    module_name = name.lower().replace(' ', '_')
-    file_path = os.path.join('addons', f"{module_name}.py")
-    
-    # Comprobar si ya existe
-    if os.path.exists(file_path):
-        logger.warning(f"El addon '{module_name}' ya existe.")
-        return False
-    
-    # Asegurar que la ruta comienza con /
-    if not route.startswith('/'):
-        route = '/' + route
-    
-    # Crear el archivo Python del addon
-    template = f'''"""
-Addon: {name}
-Descripción: {description}
-"""
-from addon_system import AddonRegistry
-from flask import render_template, redirect, url_for, flash
-import json
-
-def {module_name}_view():
-    """Vista principal para el addon {name}"""
-    # Importar la variable global desde app.py
-    from app import processed_data
-    
-    if processed_data is None:
-        flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'error')
-        return redirect(url_for('index'))
-    
-    # Realizar análisis específico
-    # TODO: Implementar lógica de análisis personalizada
-    
-    # Ejemplo: datos para la plantilla
-    data = {{
-        'title': '{name}',
-        'description': '{description}'
-    }}
-    
-    # Renderizar la plantilla
-    return render_template(
-        '{module_name}.html',
-        data=data,
-        processed_data=processed_data
-    )
-
-def register_addon():
-    """Registra este addon en el sistema"""
-    AddonRegistry.register('{module_name}', {{
-        'name': '{name}',
-        'description': '{description}',
-        'route': '{route}',
-        'view_func': {module_name}_view,
-        'template': '{module_name}.html',
-        'icon': '{icon}',
-        'active': True,
-        'version': '1.0.0',
-        'author': 'DAS Trader Analyzer User'
-    }})
-
-# Registrar automáticamente al importar
-if __name__ != '__main__':
-    register_addon()
-'''
-    
-    # Guardar el archivo Python
-    with open(file_path, 'w') as f:
-        f.write(template)
-    
-    # Crear la plantilla HTML
-    html_path = os.path.join('templates', f"{module_name}.html")
-    
-    # Usar triple comillas para la plantilla HTML para evitar problemas con las llaves
-    html_template = """{% extends 'base.html' %}
-
-{% block title %}""" + name + """ - DAS Trader Analyzer{% endblock %}
-
-{% block header %}""" + name + """{% endblock %}
-
-{% block content %}
-<div class="row">
-    <div class="col-md-12 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">""" + name + """</h6>
-            </div>
-            <div class="card-body">
-                <p>""" + description + """</p>
-                <div class="alert alert-info">
-                    <p>Este es un addon personalizado. Edita los archivos:</p>
-                    <ul>
-                        <li><code>addons/""" + module_name + """.py</code>: Para la lógica y análisis</li>
-                        <li><code>templates/""" + module_name + """.html</code>: Para la interfaz de usuario</li>
-                    </ul>
-                </div>
+    # Si se proporcionó una aplicación, registrar los addons como blueprints
+    if app is not None:
+        for addon_id, addon_info in AddonRegistry.addons.items():
+            if 'blueprint' in addon_info and addon_info['blueprint'] is not None:
+                # Si tiene un blueprint definido, registrarlo directamente
+                app.register_blueprint(addon_info['blueprint'])
+            else:
+                # Crear un blueprint basado en la función de vista y la ruta
+                bp = Blueprint(addon_id, __name__, 
+                            template_folder=os.path.join(addons_dir, addon_id, 'ui'))
                 
-                <!-- Aquí va tu contenido personalizado -->
+                # Registrar la función de vista principal
+                bp.add_url_rule(addon_info['route'], 
+                            view_func=addon_info['view_func'], 
+                            endpoint=addon_id)
                 
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-"""
+                # Almacenar el blueprint en la información del addon
+                addon_info['blueprint'] = bp
+                
+                # Registrar el blueprint en la aplicación
+                app.register_blueprint(bp)
+
+def setup_addons_for_app(app):
+    """Configurar el sistema de addons para la aplicación Flask"""
+    # Configurar carpeta de plantillas personalizada
+    template_folder = os.path.abspath('addons')
+    app.jinja_loader.searchpath.append(template_folder)
     
-    # Guardar la plantilla HTML
-    with open(html_path, 'w') as f:
-        f.write(html_template)
-    
-    logger.info(f"Addon '{name}' creado con éxito. Archivos generados: {file_path} y {html_path}")
-    return True
+    # Cargar los addons
+    load_addons_from_directory(app)

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Gestión de Addons - DAS Trader Analyzer{% endblock %}
+{% block title %}Gestión de Addons - Travesty Analyzer{% endblock %}
 
 {% block header %}Gestión de Addons{% endblock %}
 
@@ -27,6 +27,7 @@
                                     <th>Versión</th>
                                     <th>Autor</th>
                                     <th>Estado</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -45,6 +46,28 @@
                                             {% if metadata.active %}Activo{% else %}Inactivo{% endif %}
                                         </span>
                                     </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="dropdownMenu-{{ name }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Acciones
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="dropdownMenu-{{ name }}">
+                                                <li><a class="dropdown-item" href="{{ url_for('analysis.export_addon', addon_id=name) }}"><i class="fas fa-download mr-2"></i> Exportar</a></li>
+                                                <li><a class="dropdown-item {% if metadata.active %}text-danger{% else %}text-success{% endif %}" href="{{ url_for('analysis.toggle_addon', addon_id=name) }}">
+                                                    <i class="fas fa-{% if metadata.active %}times{% else %}check{% endif %} mr-2"></i> 
+                                                    {% if metadata.active %}Desactivar{% else %}Activar{% endif %}
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form action="{{ url_for('analysis.uninstall_addon', addon_id=name) }}" method="post" onsubmit="return confirm('¿Estás seguro de que deseas desinstalar este addon? Esta acción no se puede deshacer.');">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="fas fa-trash-alt mr-2"></i> Desinstalar
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -52,9 +75,52 @@
                     </div>
                 {% else %}
                     <div class="alert alert-info">
-                        No hay addons instalados. Puedes crear uno nuevo utilizando el formulario de abajo.
+                        No hay addons instalados. Puedes crear uno nuevo utilizando el formulario de abajo o importar uno existente.
                     </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Importar addon ZIP -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Importar Addon (.zip)</h6>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('analysis.import_addon_zip') }}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="addon_zip" class="form-label">Archivo ZIP del Addon</label>
+                        <input type="file" class="form-control" id="addon_zip" name="addon_zip" accept=".zip" required>
+                        <div class="form-text">Selecciona un archivo ZIP que contenga un addon compatible.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="1" id="overwrite_existing" name="overwrite_existing">
+                            <label class="form-check-label" for="overwrite_existing">
+                                Sobrescribir si ya existe
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-import mr-1"></i> Importar Addon
+                    </button>
+                </form>
+                
+                <hr>
+                
+                <div class="alert alert-info mt-3">
+                    <h6 class="alert-heading"><i class="fas fa-info-circle mr-1"></i> Estructura Esperada del ZIP</h6>
+                    <p class="mb-0">El archivo ZIP debe tener la siguiente estructura:</p>
+                    <pre class="mb-0 mt-2"><code>nombre_addon/
+├── src/
+│   └── nombre_addon.py
+└── ui/
+    └── nombre_addon.html</code></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -98,42 +164,95 @@
     </div>
 
     <!-- Guía de desarrollo -->
-    <div class="col-md-6 mb-4">
+    <div class="col-md-12 mb-4">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Guía de Desarrollo</h6>
             </div>
             <div class="card-body">
-                <p>Los addons te permiten extender la funcionalidad de la aplicación sin modificar el código principal.</p>
-                
-                <div class="alert alert-info">
-                    <h5>Estructura de un Addon</h5>
-                    <p>Cada addon consta de dos archivos:</p>
-                    <ul>
-                        <li><strong>Python (.py)</strong>: Contiene la lógica del análisis y la función de vista</li>
-                        <li><strong>HTML (.html)</strong>: Plantilla para la interfaz de usuario</li>
-                    </ul>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p>Los addons te permiten extender la funcionalidad de la aplicación sin modificar el código principal.</p>
+                        
+                        <div class="alert alert-info">
+                            <h5>Estructura de Addons</h5>
+                            <p>Cada addon está organizado en su propia carpeta con la siguiente estructura:</p>
+                            <pre><code>addons/
+└── nombre_addon/
+    ├── src/
+    │   └── nombre_addon.py     # Lógica del addon
+    └── ui/
+        └── nombre_addon.html   # Interfaz de usuario</code></pre>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h5>Pasos para Desarrollar un Addon</h5>
+                            <ol>
+                                <li>Crea el addon usando el formulario</li>
+                                <li>En la carpeta <code>addons/nombre_addon/src/</code> edita el archivo Python</li>
+                                <li>Implementa tu lógica de análisis personalizada</li>
+                                <li>En la carpeta <code>addons/nombre_addon/ui/</code> edita la plantilla HTML</li>
+                                <li>Haz clic en "Recargar Addons" para activarlo</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h5>Versionado de Addons</h5>
+                            <p>Cada addon debe incluir información de versión en el formato semántico (MAYOR.MENOR.PARCHE):</p>
+                            <pre><code># En el archivo Python del addon
+def register_addon():
+    AddonRegistry.register('mi_addon', {
+        # ...
+        'version': '1.2.3',  # Formato: MAYOR.MENOR.PARCHE
+        'author': 'Tu Nombre',
+        # ...
+    })</code></pre>
+                            <p>Al importar addons, la aplicación verificará la versión para evitar reemplazar versiones más recientes.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mt-3">
+                            <h5>Renderización de Plantillas</h5>
+                            <p>Para renderizar plantillas HTML desde tu addon, usa la función:</p>
+                            <pre><code>return custom_render_template(
+    'nombre_addon',  # ID del addon
+    'nombre_addon.html',  # Nombre del archivo HTML
+    # Variables para la plantilla
+    variable1=valor1, 
+    variable2=valor2
+)</code></pre>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h5>Acceso a los Datos</h5>
+                            <p>Cada addon tiene acceso a los datos procesados mediante:</p>
+                            <pre><code>from config import Config
+from services.cache_manager import load_processed_data
+
+# Cargar datos procesados
+processed_data = load_processed_data(Config.DATA_CACHE_PATH)</code></pre>
+                            <p>Esto proporciona acceso a:</p>
+                            <ul>
+                                <li><code>processed_trades</code>: Lista de operaciones procesadas</li>
+                                <li><code>metrics</code>: Métricas generales del rendimiento</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="mt-3">
-                    <h5>Pasos para Desarrollar un Addon</h5>
-                    <ol>
-                        <li>Crea el addon usando el formulario</li>
-                        <li>Edita el archivo Python en la carpeta <code>addons/</code></li>
-                        <li>Implementa tu lógica de análisis personalizada</li>
-                        <li>Edita la plantilla HTML en <code>templates/</code></li>
-                        <li>Haz clic en "Recargar Addons" para activarlo</li>
-                    </ol>
-                </div>
-                
-                <div class="mt-3">
-                    <h5>Acceso a los Datos</h5>
-                    <p>Cada addon tiene acceso a la variable global <code>processed_data</code> que contiene:</p>
-                    <ul>
-                        <li><code>processed_orders</code>: Lista de órdenes procesadas</li>
-                        <li><code>metrics</code>: Métricas generales del rendimiento</li>
-                        <li>Otros datos de análisis predefinidos</li>
-                    </ul>
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-share-alt mr-2"></i> Compartir Addons</h5>
+                            <p>Puedes compartir tus addons con otros usuarios:</p>
+                            <ol>
+                                <li>Utiliza la opción "Exportar" en el menú de acciones del addon</li>
+                                <li>Comparte el archivo ZIP generado</li>
+                                <li>Otros usuarios pueden importar el addon utilizando la función "Importar Addon"</li>
+                            </ol>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

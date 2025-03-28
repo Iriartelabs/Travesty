@@ -2,7 +2,6 @@ from flask import Flask
 
 from config import get_config
 from services.cache_manager import load_processed_data
-from addons.trading_alert_addon import trading_alerts_bp
 
 # Variable global para almacenar datos procesados
 processed_data = None
@@ -23,27 +22,24 @@ def create_app(config_name='development'):
     # Intentar cargar datos procesados
     processed_data = load_processed_data(config.DATA_CACHE_PATH)
     
-    # Importar blueprints aquí para evitar importaciones circulares
+    # Importar blueprints
     from routes.main import main_bp
-    from routes.data_upload import upload_bp
     from routes.analysis import analysis_bp
     
     # Importar extensiones
     from extensions import init_extensions
     
-    # Inicializar extensiones (filtros, etc.)
+    # Inicializar extensiones
     init_extensions(app)
     
     # Registrar blueprints
     app.register_blueprint(main_bp)
-    app.register_blueprint(upload_bp)
     app.register_blueprint(analysis_bp)
-    app.register_blueprint(trading_alerts_bp)
-    # Cargar addons
-	
-	
-	
+    
+    # Cargar y configurar addons
     from addon_system import load_addons_from_directory, AddonRegistry
+    
+    # Cargar addons primero
     load_addons_from_directory()
     
     # Inicializar sistema de addons
@@ -52,15 +48,7 @@ def create_app(config_name='development'):
     return app
 
 def update_processed_data(new_data=None):
-    """
-    Actualiza o devuelve los datos procesados globales
-    
-    Args:
-        new_data (dict, optional): Nuevos datos para reemplazar los existentes
-    
-    Returns:
-        dict or None: Datos procesados actuales
-    """
+    """Actualiza o devuelve los datos procesados globales"""
     global processed_data
     
     if new_data is not None:

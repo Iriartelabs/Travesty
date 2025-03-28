@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload - Travesty Analyzer{% endblock %}
+
+{% block header %}Carga de Archivos{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Carga de datos</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <form action="{{ url_for('main.upload_file') }}" method="post" enctype="multipart/form-data" class="mb-4">
+                            <div class="mb-3">
+                                <label for="trades" class="form-label">Archivo de Trading (CSV)</label>
+                                <input type="file" class="form-control" id="trades" name="trades" accept=".csv" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="trade_date" class="form-label">Fecha de los datos (opcional)</label>
+                                <input type="date" class="form-control" id="trade_date" name="trade_date">
+                                <div class="form-text">Si no especificas una fecha, se intentará detectar automáticamente del archivo.</div>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload mr-2"></i> Cargar archivo y analizar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="bg-light p-4 rounded mb-4">
+                            <h6>Instrucciones:</h6>
+                            <ol>
+                                <li>Exporta tus datos de trading en formato CSV desde DAS Trader</li>
+                                <li>Sube el archivo utilizando el formulario</li>
+                                <li>Opcionalmente, especifica la fecha a la que corresponden los datos</li>
+                                <li>La aplicación procesará y organizará tus datos automáticamente</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if available_dates %}
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Archivos disponibles</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Operaciones</th>
+                                <th>Símbolos</th>
+                                <th>Importado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for date_info in available_dates %}
+                            <tr>
+                                <td>{{ date_info.date_str }}</td>
+                                <td>{{ date_info.stats.total_rows }}</td>
+                                <td>{{ date_info.stats.symbols }}</td>
+                                <td>{{ date_info.import_time }}</td>
+                                <td>
+                                    <a href="{{ url_for('main.load_date', year=date_info.year, month=date_info.month, day=date_info.day) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-chart-bar mr-1"></i> Analizar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    .calendar-cell {
+        width: 40px;
+        height: 40px;
+        text-align: center;
+        line-height: 40px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    
+    .calendar-cell:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .calendar-cell.has-data {
+        background-color: #4e73df;
+        color: white;
+    }
+</style>
+{% endblock %}

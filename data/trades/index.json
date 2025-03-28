@@ -1,0 +1,16 @@
+[
+  {
+    "year": 2025,
+    "month": 3,
+    "day": 26,
+    "date_str": "2025-03-26",
+    "path": "C:\\xampp\\htdocs\\Travesty\\data\\trades\\2025\\03\\26\\trades.csv",
+    "import_time": "2025-03-28 17:10:57",
+    "stats": {
+      "total_rows": 50,
+      "symbols": 4,
+      "first_time": "03/26/25 09:33:22",
+      "last_time": "03/26/25 13:41:40"
+    }
+  }
+]
