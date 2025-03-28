@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+
+{% block title %}Backtest de Estrategias - Trading Alerts Pro{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Backtest de Estrategias</h1>
+    <a href="{{ url_for('trading_alerts.trading_alerts') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50 mr-1"></i> Volver a Alertas
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Formulario de Backtest -->
+    <div class="col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Configuración del Backtest</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('trading_alerts.backtest') }}" id="backtestForm">
+                    <div class="form-group mb-3">
+                        <label for="symbol" class="form-label">Símbolo</label>
+                        <select class="form-select" id="symbol" name="symbol" required>
+                            <option value="" selected disabled>Selecciona un símbolo</option>
+                            {% for symbol in symbols %}
+                            <option value="{{ symbol }}">{{ symbol }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label for="strategy" class="form-label">Estrategia</label>
+                        <select class="form-select" id="strategy" name="strategy" required>
+                            <option value="" selected disabled>Selecciona una estrategia</option>
+                            <option value="sma_crossover">Cruce de Medias Móviles (SMA)</option>
+                            <option value="rsi">Índice de Fuerza Relativa (RSI)</option>
+                        </select>
+                    </div>
+
+                    <!-- Parámetros específicos para cada estrategia -->
+                    <div id="strategyParams">
+                        <!-- SMA Crossover Parameters -->
+                        <div class="strategy-params" id="sma_crossover_params" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="short_period" class="form-label">SMA Corto</label>
+                                    <input type="number" class="form-control" id="short_period" 
+                                           name="short_period" min="1" step="1" value="20">
+                                </div>
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="long_period" class="form-label">SMA Largo</label>
+                                    <input type="number" class="form-control" id="long_period" 
+                                           name="long_period" min="1" step="1" value="50">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RSI Parameters -->
+                        <div class="strategy-params" id="rsi_params" style="display: none;">
+                            <div class="form-group mb-3">
+                                <label for="rsi_period" class="form-label">Período RSI</label>
+                                <input type="number" class="form-control" id="rsi_period" 
+                                       name="rsi_period" min="1" step="1" value="14">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="overbought" class="form-label">Nivel de Sobrecompra</label>
+                                    <input type="number" class="form-control" id="overbought" 
+                                           name="overbought" min="50" max="100" step="1" value="70">
+                                </div>
+                                <div class="col-md-6 form-group mb-3">
+                                    <label for="oversold" class="form-label">Nivel de Sobreventa</label>
+                                    <input type="number" class="form-control" id="oversold" 
+                                           name="oversold" min="0" max="50" step="1" value="30">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play fa-sm text-white-50 mr-2"></i>
+                        Ejecutar Backtest
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Información sobre estrategias -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Información sobre Estrategias</h6>
+            </div>
+            <div class="card-body">
+                <div class="strategy-info" id="sma_crossover_info" style="display: none;">
+                    <h5 class="text-primary">Cruce de Medias Móviles (SMA)</h5>
+                    <p>Esta estrategia se basa en los cruces entre dos medias móviles simples:</p>
+                    <ul>
+                        <li><strong>Señal de compra:</strong> La SMA corta cruza por encima de la SMA larga</li>
+                        <li><strong>Señal de venta:</strong> La SMA corta cruza por debajo de la SMA larga</li>
+                    </ul>
+                    <div class="alert alert-info p-2 small">
+                        <i class="fas fa-lightbulb"></i> El período corto suele ser de 20 días, mientras que el período largo suele ser de 50 o 200 días.
+                    </div>
+                </div>
+                <div class="strategy-info" id="rsi_info" style="display: none;">
+                    <h5 class="text-primary">Índice de Fuerza Relativa (RSI)</h5>
+                    <p>Esta estrategia utiliza el RSI para identificar condiciones de sobrecompra y sobreventa:</p>
+                    <ul>
+                        <li><strong>Señal de compra:</strong> RSI por debajo del nivel de sobreventa (generalmente 30)</li>
+                        <li><strong>Señal de venta:</strong> RSI por encima del nivel de sobrecompra (generalmente 70)</li>
+                    </ul>
+                    <div class="alert alert-info p-2 small">
+                        <i class="fas fa-lightbulb"></i> El RSI se calcula típicamente sobre un período de 14 días.
+                    </div>
+                </div>
+                <div id="no_strategy_selected" class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <p>Selecciona una estrategia para ver más información</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resultados del Backtest -->
+    <div class="col-lg-7">
+        {% if backtest_results %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    Resultados para {{ backtest_results.symbol }} - 
+                    {% if backtest_results.strategy == 'sma_crossover' %}
+                        Cruce SMA ({{ backtest_results.params.short_period }}/{{ backtest_results.params.long_period }})
+                    {% elif backtest_results.strategy == 'rsi' %}
+                        RSI ({{ backtest_results.params.period }})
+                    {% endif %}
+                </h6>
+                <span class="badge {% if backtest_results.total_return > 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    {{ (backtest_results.total_return * 100)|round(2) }}%
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <div class="row text-center">
+                                    <div class="col-6 border-end">
+                                        <h5>{{ backtest_results.total_trades }}</h5>
+                                        <p class="text-muted mb-0 small">Operaciones</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h5>{{ backtest_results.win_rate|round(2) }}%</h5>
+                                        <p class="text-muted mb-0 small">Win Rate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <div class="row text-center">
+                                    <div class="col-6 border-end">
+                                        <h5>{{ backtest_results.winning_trades }}</h5>
+                                        <p class="text-muted mb-0 small">Ganadoras</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h5>{{ (backtest_results.max_drawdown * 100)|round(2) }}%</h5>
+                                        <p class="text-muted mb-0 small">Max Drawdown</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de la curva de equidad -->
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="equityCurveChart"></canvas>
+                </div>
+                
+                <div class="alert alert-warning mt-4">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Importante:</strong> Este backtest utiliza datos simulados para fines demostrativos. Para un análisis más preciso, recomendamos utilizar datos históricos reales e incluir comisiones y deslizamiento.
+                </div>
+                
+                <!-- Descripción de la estrategia testeada -->
+                <div class="card mt-3">
+                    <div class="card-header bg-light py-2">
+                        <h6 class="m-0 font-weight-bold">Detalles de la Estrategia</h6>
+                    </div>
+                    <div class="card-body p-3">
+                        {% if backtest_results.strategy == 'sma_crossover' %}
+                        <p>
+                            <strong>Estrategia:</strong> Cruce de Medias Móviles Simples<br>
+                            <strong>SMA Corto:</strong> {{ backtest_results.params.short_period }} períodos<br>
+                            <strong>SMA Largo:</strong> {{ backtest_results.params.long_period }} períodos<br>
+                            <strong>Lógica:</strong> Compra cuando SMA corto cruza por encima del SMA largo, vende cuando cruza por debajo.
+                        </p>
+                        {% elif backtest_results.strategy == 'rsi' %}
+                        <p>
+                            <strong>Estrategia:</strong> RSI (Índice de Fuerza Relativa)<br>
+                            <strong>Período RSI:</strong> {{ backtest_results.params.period }} períodos<br>
+                            <strong>Nivel Sobrecompra:</strong> {{ backtest_results.params.overbought }}<br>
+                            <strong>Nivel Sobreventa:</strong> {{ backtest_results.params.oversold }}<br>
+                            <strong>Lógica:</strong> Compra cuando RSI está por debajo del nivel de sobreventa, vende cuando está por encima del nivel de sobrecompra.
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card shadow mb-4">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-chart-line fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">Configura y ejecuta un backtest para ver resultados</h5>
+                <p class="mb-0 text-muted">
+                    Los resultados se mostrarán aquí, incluyendo métricas de rendimiento y una curva de equidad.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Sugerencias para optimización -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Optimización de Estrategias</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <h6 class="alert-heading">Consejos para optimizar tu estrategia:</h6>
+                    <ul class="mb-0">
+                        <li>Prueba diferentes períodos para tus indicadores (por ejemplo, SMA de 10/30 en lugar de 20/50)</li>
+                        <li>Combina múltiples indicadores para confirmación (por ejemplo, RSI + MACD)</li>
+                        <li>Considera añadir filtros para evitar señales falsas (como tendencia general del mercado)</li>
+                        <li>Implementa reglas de gestión de riesgo (tamaño de posición, stop loss, take profit)</li>
+                        <li>Valida tu estrategia en diferentes condiciones de mercado (alcista, bajista, lateral)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Escuchar cambios en el combo de estrategias
+        $('#strategy').on('change', function() {
+            const strategy = $(this).val();
+            
+            // Ocultar todos los parámetros y la información
+            $('.strategy-params').hide();
+            $('.strategy-info').hide();
+            $('#no_strategy_selected').hide();
+            
+            // Mostrar parámetros específicos de la estrategia seleccionada
+            if (strategy) {
+                $(`#${strategy}_params`).show();
+                $(`#${strategy}_info`).show();
+            } else {
+                $('#no_strategy_selected').show();
+            }
+        });
+        
+        // Validación del formulario
+        $('#backtestForm').on('submit', function(e) {
+            const symbol = $('#symbol').val();
+            const strategy = $('#strategy').val();
+            
+            if (!symbol || !strategy) {
+                e.preventDefault();
+                alert('Por favor, selecciona un símbolo y una estrategia');
+                return false;
+            }
+            
+            if (strategy === 'sma_crossover') {
+                const shortPeriod = parseInt($('#short_period').val());
+                const longPeriod = parseInt($('#long_period').val());
+                
+                if (shortPeriod >= longPeriod) {
+                    e.preventDefault();
+                    alert('El período SMA corto debe ser menor que el período SMA largo');
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        {% if backtest_results %}
+        // Renderizar gráfico de curva de equidad si hay resultados
+        const equityCurveData = {{ backtest_results.equity_curve|tojson }};
+        
+        const equityCurveCtx = document.getElementById('equityCurveChart').getContext('2d');
+        new Chart(equityCurveCtx, {
+            type: 'line',
+            data: {
+                labels: Object.keys(equityCurveData),
+                datasets: [{
+                    label: 'Curva de Equidad',
+                    data: Object.values(equityCurveData),
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return (value * 100).toFixed(2) + '%';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Rendimiento (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Días'
+                        },
+                        ticks: {
+                            maxTicksLimit: 10
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                return 'Rendimiento: ' + (value * 100).toFixed(2) + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Pre-seleccionar los valores en el formulario según los resultados
+        $('#symbol').val('{{ backtest_results.symbol }}');
+        $('#strategy').val('{{ backtest_results.strategy }}');
+        $('#strategy').trigger('change');
+        
+        {% if backtest_results.strategy == 'sma_crossover' %}
+        $('#short_period').val('{{ backtest_results.params.short_period }}');
+        $('#long_period').val('{{ backtest_results.params.long_period }}');
+        {% elif backtest_results.strategy == 'rsi' %}
+        $('#rsi_period').val('{{ backtest_results.params.period }}');
+        $('#overbought').val('{{ backtest_results.params.overbought }}');
+        $('#oversold').val('{{ backtest_results.params.oversold }}');
+        {% endif %}
+        {% endif %}
+    });
+</script>
+{% endblock %}

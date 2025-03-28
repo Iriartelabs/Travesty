@@ -1,0 +1,1 @@
+# Paquete de addons para DAS Trader Analyzer

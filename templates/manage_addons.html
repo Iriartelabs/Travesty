@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Addons - DAS Trader Analyzer{% endblock %}
+
+{% block header %}Gestión de Addons{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Addons instalados -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Addons Instalados</h6>
+                <a href="{{ url_for('analysis.reload_addons') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-sync-alt mr-1"></i> Recargar Addons
+                </a>
+            </div>
+            <div class="card-body">
+                {% if addons %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Ruta</th>
+                                    <th>Versión</th>
+                                    <th>Autor</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, metadata in addons.items() %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-{{ metadata.icon }} mr-2"></i>
+                                        {{ metadata.name }}
+                                    </td>
+                                    <td>{{ metadata.description }}</td>
+                                    <td><code>{{ metadata.route }}</code></td>
+                                    <td>{{ metadata.version }}</td>
+                                    <td>{{ metadata.author }}</td>
+                                    <td>
+                                        <span class="badge {% if metadata.active %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {% if metadata.active %}Activo{% else %}Inactivo{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No hay addons instalados. Puedes crear uno nuevo utilizando el formulario de abajo.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Crear un nuevo addon -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Crear Nuevo Addon</h6>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('analysis.create_new_addon') }}" method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre del Addon</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="route" class="form-label">Ruta (opcional)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">/</span>
+                            <input type="text" class="form-control" id="route" name="route" placeholder="Se generará automáticamente si no se especifica">
+                        </div>
+                        <div class="form-text">Si no especificas una ruta, se generará a partir del nombre.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="icon" class="form-label">Icono</label>
+                        <div class="input-group">
+                            <span class="input-group-text">fa-</span>
+                            <input type="text" class="form-control" id="icon" name="icon" value="chart-bar">
+                        </div>
+                        <div class="form-text">Nombre del icono de FontAwesome (por defecto: chart-bar)</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Crear Addon</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guía de desarrollo -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Guía de Desarrollo</h6>
+            </div>
+            <div class="card-body">
+                <p>Los addons te permiten extender la funcionalidad de la aplicación sin modificar el código principal.</p>
+                
+                <div class="alert alert-info">
+                    <h5>Estructura de un Addon</h5>
+                    <p>Cada addon consta de dos archivos:</p>
+                    <ul>
+                        <li><strong>Python (.py)</strong>: Contiene la lógica del análisis y la función de vista</li>
+                        <li><strong>HTML (.html)</strong>: Plantilla para la interfaz de usuario</li>
+                    </ul>
+                </div>
+                
+                <div class="mt-3">
+                    <h5>Pasos para Desarrollar un Addon</h5>
+                    <ol>
+                        <li>Crea el addon usando el formulario</li>
+                        <li>Edita el archivo Python en la carpeta <code>addons/</code></li>
+                        <li>Implementa tu lógica de análisis personalizada</li>
+                        <li>Edita la plantilla HTML en <code>templates/</code></li>
+                        <li>Haz clic en "Recargar Addons" para activarlo</li>
+                    </ol>
+                </div>
+                
+                <div class="mt-3">
+                    <h5>Acceso a los Datos</h5>
+                    <p>Cada addon tiene acceso a la variable global <code>processed_data</code> que contiene:</p>
+                    <ul>
+                        <li><code>processed_orders</code>: Lista de órdenes procesadas</li>
+                        <li><code>metrics</code>: Métricas generales del rendimiento</li>
+                        <li>Otros datos de análisis predefinidos</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<!-- FontAwesome para iconos -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+{% endblock %}

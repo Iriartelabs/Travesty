@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+
+{% block title %}Análisis de Compras/Ventas - Analizador de Trading DAS{% endblock %}
+
+{% block header %}Análisis de Compras/Ventas{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Resumen de rendimiento -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Rendimiento por Tipo de Operación</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for item in buysell %}
+                    <div class="col-md-6">
+                        <div class="card {% if item.type == 'Compras' %}bg-primary{% else %}bg-info{% endif %} text-white mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">{{ item.type }}</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6 border-end">
+                                        <h2 class="display-4">${{ item.totalPL|format_number }}</h2>
+                                        <p class="m-0">P&L Total</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h2 class="display-4">{{ item.winRate|format_percent }}</h2>
+                                        <p class="m-0">Win Rate</p>
+                                    </div>
+                                </div>
+                                <hr class="my-3">
+                                <div class="row text-center">
+                                    <div class="col-6 border-end">
+                                        <h3>{{ item.totalTrades }}</h3>
+                                        <p class="m-0">Operaciones</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <h3>${{ (item.totalPL / item.totalTrades)|format_number }}</h3>
+                                        <p class="m-0">P&L por operación</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráficos de comparación -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Comparación de P&L</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="plComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Distribución de Operaciones</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie" style="height: 400px;">
+                    <canvas id="tradesDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico comparativo de métricas -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Comparación de Métricas</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-bar" style="height: 400px;">
+                    <canvas id="metricsComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Análisis y recomendaciones -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Análisis de Estrategia</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5>Análisis comparativo</h5>
+                    <p>Basado en el análisis de tus operaciones de compra y venta, aquí hay algunas observaciones:</p>
+                    
+                    <ul>
+                        {% for item in buysell %}
+                        <li>
+                            <strong>{{ item.type }}:</strong> {{ item.totalTrades }} operaciones con un win rate de {{ item.winRate|format_percent }} 
+                            y un P&L total de ${{ item.totalPL|format_number }}.
+                            {% if item.totalPL > 0 %}
+                                <span class="text-success">Esta estrategia es rentable.</span>
+                            {% else %}
+                                <span class="text-danger">Esta estrategia necesita revisión.</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    <h5 class="mt-4">Recomendaciones</h5>
+                    <ul>
+                        {% for item in buysell %}
+                        <li>
+                            {% if item.totalPL > 0 %}
+                                Considera aumentar el tamaño de posición en tus {{ item.type.lower() }} ya que muestran resultados positivos.
+                            {% else %}
+                                Revisa tus reglas para {{ item.type.lower() }} o considera reducir su frecuencia hasta mejorar la estrategia.
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                        <li>
+                            Compara las horas del día en que realizas cada tipo de operación para identificar patrones adicionales.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Datos para los gráficos
+    const buySellData = {{ buysell_json|safe }};
+    
+    // Gráfico de comparación de P&L
+    const plComparisonCtx = document.getElementById('plComparisonChart').getContext('2d');
+    new Chart(plComparisonCtx, {
+        type: 'bar',
+        data: {
+            labels: buySellData.map(item => item.type),
+            datasets: [{
+                label: 'P&L ($)',
+                data: buySellData.map(item => item.totalPL),
+                backgroundColor: buySellData.map(item => item.totalPL >= 0 ? 'rgba(28, 200, 138, 0.8)' : 'rgba(231, 74, 59, 0.8)'),
+                borderColor: buySellData.map(item => item.totalPL >= 0 ? 'rgb(28, 200, 138)' : 'rgb(231, 74, 59)'),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = buySellData[context.dataIndex];
+                            return 'P&L: $' + item.totalPL.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de distribución de operaciones
+    const tradesDistributionCtx = document.getElementById('tradesDistributionChart').getContext('2d');
+    new Chart(tradesDistributionCtx, {
+        type: 'pie',
+        data: {
+            labels: buySellData.map(item => item.type),
+            datasets: [{
+                data: buySellData.map(item => item.totalTrades),
+                backgroundColor: ['rgba(78, 115, 223, 0.8)', 'rgba(54, 185, 204, 0.8)'],
+                borderColor: ['rgb(78, 115, 223)', 'rgb(54, 185, 204)'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const item = buySellData[context.dataIndex];
+                            const total = buySellData.reduce((sum, data) => sum + data.totalTrades, 0);
+                            const percentage = (item.totalTrades / total * 100).toFixed(1);
+                            return [
+                                item.type + ': ' + item.totalTrades + ' operaciones',
+                                percentage + '% del total'
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico comparativo de métricas
+    const metricsComparisonCtx = document.getElementById('metricsComparisonChart').getContext('2d');
+    new Chart(metricsComparisonCtx, {
+        type: 'bar',
+        data: {
+            labels: buySellData.map(item => item.type),
+            datasets: [
+                {
+                    label: 'Win Rate (%)',
+                    data: buySellData.map(item => item.winRate),
+                    backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                    borderColor: 'rgb(78, 115, 223)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'P&L por Operación ($)',
+                    data: buySellData.map(item => item.totalPL / item.totalTrades),
+                    backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                    borderColor: 'rgb(28, 200, 138)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Win Rate (%)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    min: 0,
+                    max: 100
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'P&L por Operación ($)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const datasetLabel = context.dataset.label;
+                            const value = context.raw;
+                            
+                            if (datasetLabel === 'Win Rate (%)') {
+                                return datasetLabel + ': ' + value.toFixed(2) + '%';
+                            } else {
+                                return datasetLabel + ': $' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
