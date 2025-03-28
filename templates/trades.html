@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Listado de Operaciones - Analizador de Trading DAS{% endblock %}
+
+{% block header %}Listado de Operaciones{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Operaciones realizadas</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="tradesTable">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Símbolo</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th>Precio Ejec.</th>
+                        <th class="text-end">P&L</th>
+                        <th class="text-end">Comisiones</th>
+                        <th class="text-end">P&L Neto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="{% if order.pnl >= 0 %}table-success{% else %}table-danger{% endif %}">
+                        <td>{{ order.time }}</td>
+                        <td>{{ order.symb }}</td>
+                        <td>{{ "Compra" if order['B/S'] == 'B' else "Venta" }}</td>
+                        <td>{{ order.totalQty }}</td>
+                        <td>${{ order.price|format_number }}</td>
+                        <td>${{ order.avgPrice|format_number }}</td>
+                        <td class="text-end {% if order.pnl + order.totalCommission + order.totalRouteFee >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ (order.pnl + order.totalCommission + order.totalRouteFee)|format_number }}
+                        </td>
+                        <td class="text-end text-danger">
+                            -${{ (order.totalCommission + order.totalRouteFee)|format_number }}
+                        </td>
+                        <td class="text-end {% if order.pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ order.pnl|format_number }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#tradesTable').DataTable({
+            "order": [[0, "desc"]], // Ordenar por fecha (más reciente primero)
+            "pageLength": 25,
+            "language": {
+                "decimal": ",",
+                "thousands": ".",
+                "lengthMenu": "Mostrar _MENU_ operaciones por página",
+                "zeroRecords": "No se encontraron operaciones",
+                "info": "Mostrando página _PAGE_ de _PAGES_",
+                "infoEmpty": "No hay operaciones disponibles",
+                "infoFiltered": "(filtrado de _MAX_ operaciones totales)",
+                "search": "Buscar:",
+                "paginate": {
+                    "first": "Primera",
+                    "last": "Última",
+                    "next": "Siguiente",
+                    "previous": "Anterior"
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
