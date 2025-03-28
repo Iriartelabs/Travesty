@@ -10,6 +10,9 @@ from datetime import datetime
 from config import Config
 from services.cache_manager import load_processed_data
 
+# Control de registro único
+_is_registered = False
+
 def analyze_by_weekday(orders):
     """Analiza rendimiento por día de la semana"""
     print("[DEBUG] Comenzando análisis por día de la semana")
@@ -129,6 +132,10 @@ def weekday_analysis_view():
 
 def register_addon():
     """Registra este addon en el sistema"""
+    global _is_registered
+    if _is_registered:
+        return
+        
     AddonRegistry.register('weekday_analysis', {
         'name': 'Análisis por Día',
         'description': 'Analiza el rendimiento de trading por día de la semana',
@@ -140,6 +147,8 @@ def register_addon():
         'version': '1.0.0',
         'author': 'DAS Trader Analyzer'
     })
+    
+    _is_registered = True
 
 # Registrar automáticamente al importar
 if __name__ != '__main__':

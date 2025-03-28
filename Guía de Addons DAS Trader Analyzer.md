@@ -2,7 +2,11 @@
 
 ## Introducción
 
+<<<<<<< Updated upstream
 Este documento detalla cómo desarrollar addons para la aplicación DAS Trader Analyzer, explicando la arquitectura del sistema de addons, su integración con la aplicación principal y cómo crear nuevos addons de manera efectiva.
+=======
+Este documento detalla cómo desarrollar addons para la aplicación DAS Trader Analyzer, explicando la arquitectura del sistema de addons, su integración con la aplicación principal y cómo crear nuevos addons de forma efectiva tanto manual como a través de la interfaz de usuario.
+>>>>>>> Stashed changes
 
 ## Arquitectura de la Aplicación
 
@@ -26,9 +30,167 @@ El sistema de addons permite extender la funcionalidad de la aplicación sin mod
 2. **load_addons_from_directory()**: Función que carga automáticamente todos los addons desde el directorio `addons/`.
 3. **Integración con Flask**: Los addons se registran como blueprints de Flask.
 
+## Limitaciones Importantes del Sistema de Addons
+
+El sistema de addons tiene algunas limitaciones importantes que deben tenerse en cuenta al desarrollar addons:
+
+1. **Única Ruta Principal por Addon**: El sistema no gestiona correctamente múltiples rutas separadas dentro de un blueprint. Los addons complejos deben usar una única ruta base con parámetros de acción.
+
+2. **Formato Específico para Referencias URL**: Las referencias en plantillas HTML deben usar el formato `addon_[nombre_del_addon].[nombre_de_función]` en lugar de `[nombre_del_addon].[nombre_de_función]`.
+
+3. **Registro de Blueprints**: El sistema agrega automáticamente el prefijo `addon_` al nombre del blueprint cuando lo registra.
+
+## Mejores Prácticas para Desarrollar Addons
+
+### 1. Estructura Recomendada
+
+La estructura recomendada para cualquier addon es usar una única ruta base con un parámetro de acción:
+
+```python
+@addon_bp.route('/mi-ruta')
+def main_view():
+    """Función principal que maneja todas las acciones del addon"""
+    try:
+        # Obtener datos procesados de manera robusta
+        try:
+            from app import processed_data
+        except ImportError:
+            from config import Config
+            from services.cache_manager import load_processed_data
+            processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+            
+        if processed_data is None:
+            processed_data = {}
+            
+        # Obtener la acción solicitada
+        action = request.args.get('action', 'default')
+        
+        if action == 'action1':
+            # Lógica para acción 1
+            return render_template('plantilla_accion1.html', processed_data=processed_data)
+        elif action == 'action2':
+            # Lógica para acción 2
+            return render_template('plantilla_accion2.html', processed_data=processed_data)
+        else:
+            # Lógica por defecto
+            return render_template('mi_plantilla.html', processed_data=processed_data)
+            
+    except Exception as e:
+        print(f"Error en main_view: {str(e)}")
+        # Manejo de errores robusto
+        return render_template('mi_plantilla.html', processed_data={}, error=str(e))
+```
+
+### 2. Registro del Addon
+
+Siempre registrar el addon con un ID único y proporcionar la ruta y función principal:
+
+```python
+def register_addon():
+    """Registra este addon en el sistema"""
+    AddonRegistry.register('mi_addon_id', {
+        'name': 'Nombre Mostrado',
+        'description': 'Descripción del addon',
+        'route': '/mi-ruta',
+        'view_func': main_view,
+        'template': 'mi_plantilla.html',
+        'icon': 'chart-bar',  # Icono de FontAwesome
+        'active': True,
+        'version': '1.0.0',
+        'author': 'Tu Nombre'
+    })
+
+# Registrar automáticamente al importar
+if __name__ != '__main__':
+    register_addon()
+```
+
+### 3. Referencias URL en Plantillas
+
+En tus plantillas HTML, siempre referencia las rutas usando el prefijo `addon_`:
+
+```html
+<a href="{{ url_for('addon_mi_addon_id.main_view', action='action1') }}">Acción 1</a>
+<a href="{{ url_for('addon_mi_addon_id.main_view', action='action2') }}">Acción 2</a>
+<a href="{{ url_for('addon_mi_addon_id.main_view') }}">Página Principal</a>
+```
+
+### 4. Manejo Robusto de Datos Procesados
+
+Siempre implementa un manejo robusto de los datos procesados para evitar errores:
+
+```python
+try:
+    # Intentar obtener datos procesados de diferentes maneras
+    try:
+        from app import processed_data
+    except ImportError:
+        # Si no se puede importar directamente, intentar desde la caché
+        from config import Config
+        from services.cache_manager import load_processed_data
+        processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+        
+    # Proporcionar un valor predeterminado si los datos son None
+    if processed_data is None:
+        processed_data = {}
+        
+    # Usar los datos procesados...
+    
+except Exception as e:
+    print(f"Error al cargar datos procesados: {str(e)}")
+    # Continuar con valor predeterminado
+    processed_data = {}
+```
+
+### 5. Gestión de Formularios
+
+Para los addons que manejan formularios, usa el mismo enfoque de una única ruta con manejo de métodos:
+
+```python
+@addon_bp.route('/mi-ruta', methods=['GET', 'POST'])
+def main_view():
+    """Función principal que maneja todas las acciones del addon"""
+    action = request.args.get('action', 'default')
+    
+    # Acción para mostrar/procesar formulario
+    if action == 'formulario':
+        if request.method == 'POST':
+            # Procesar el formulario
+            campo1 = request.form.get('campo1')
+            campo2 = request.form.get('campo2')
+            
+            # Hacer algo con los datos...
+            
+            flash('Formulario procesado correctamente', 'success')
+            return redirect(url_for('addon_mi_addon_id.main_view'))
+        else:
+            # Mostrar el formulario
+            return render_template('mi_formulario.html', processed_data=processed_data)
+```
+
 ## Cómo Desarrollar un Nuevo Addon
 
+<<<<<<< Updated upstream
 ### 1. Crear el Archivo del Addon
+=======
+Existen dos métodos para crear un nuevo addon: manualmente (para desarrolladores) o mediante la interfaz de usuario (para usuarios finales).
+
+### Método 1: Crear un Addon desde la Interfaz de Usuario
+
+1. Navega a la opción "Gestionar Addons" en la barra lateral
+2. Completa el formulario con:
+   - **Nombre**: Nombre visible del addon
+   - **Ruta**: URL para acceder al addon (ej: `/mi-addon`)
+   - **Descripción**: Breve descripción de la funcionalidad
+   - **Icono**: Nombre del icono de FontAwesome sin el prefijo "fa-"
+3. Haz clic en "Crear Addon"
+4. Navega a "Recargar Addons" para activar el nuevo addon
+5. Modifica los archivos generados siguiendo la estructura recomendada en este documento
+
+### Método 2: Crear un Addon Manualmente
+
+#### 1. Crear el Archivo del Addon
+>>>>>>> Stashed changes
 
 Cada addon es un archivo Python (.py) ubicado en el directorio `addons/`. Por ejemplo: `addons/mi_nuevo_addon.py`.
 
@@ -38,9 +200,10 @@ Addon: Nombre del Addon
 Descripción: Breve descripción de la funcionalidad
 """
 from addon_system import AddonRegistry
-from flask import render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 import json
 
+<<<<<<< Updated upstream
 from config import Config
 from services.cache_manager import load_processed_data
 
@@ -69,6 +232,80 @@ def mi_funcion_vista():
         mi_analisis_json=mi_analisis_json,
         processed_data=processed_data
     )
+=======
+# Crear un blueprint para el addon
+mi_addon_bp = Blueprint('mi_addon', __name__)
+
+@mi_addon_bp.route('/mi-ruta', methods=['GET', 'POST'])
+def main_view():
+    """Función principal del addon"""
+    try:
+        # Intentar obtener datos procesados de diferentes maneras
+        try:
+            from app import processed_data
+        except ImportError:
+            # Si no se puede importar directamente, intentar desde la caché
+            from config import Config
+            from services.cache_manager import load_processed_data
+            processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+            
+        # Proporcionar un valor predeterminado si los datos son None
+        if processed_data is None:
+            flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'warning')
+            processed_data = {}
+            
+        # Obtener la acción solicitada
+        action = request.args.get('action', 'default')
+        
+        # === ACCIÓN 1 ===
+        if action == 'accion1':
+            # Lógica específica para acción 1
+            return render_template(
+                'accion1_template.html',
+                processed_data=processed_data
+            )
+            
+        # === ACCIÓN 2 (CON FORMULARIO) ===
+        elif action == 'accion2':
+            if request.method == 'POST':
+                # Procesar formulario
+                # ...
+                flash('Formulario procesado', 'success')
+                return redirect(url_for('addon_mi_addon.main_view'))
+            else:
+                # Mostrar formulario
+                return render_template(
+                    'accion2_template.html',
+                    processed_data=processed_data
+                )
+        
+        # === ACCIÓN POR DEFECTO ===
+        else:
+            # Obtener datos procesados
+            processed_orders = processed_data.get('processed_orders', [])
+            
+            # Realizar análisis específico
+            mi_analisis = realizar_analisis(processed_orders)
+            
+            # Convertir a JSON para usar en gráficos
+            mi_analisis_json = json.dumps(mi_analisis)
+            
+            # Renderizar la plantilla principal
+            return render_template(
+                'mi_nuevo_addon.html',
+                mi_analisis=mi_analisis,
+                mi_analisis_json=mi_analisis_json,
+                processed_data=processed_data
+            )
+            
+    except Exception as e:
+        print(f"Error en main_view: {str(e)}")
+        return render_template(
+            'mi_nuevo_addon.html',
+            error=str(e),
+            processed_data={}
+        )
+>>>>>>> Stashed changes
 
 def realizar_analisis(orders):
     """Función que implementa el análisis específico del addon"""
@@ -80,8 +317,13 @@ def register_addon():
     AddonRegistry.register('mi_nuevo_addon', {
         'name': 'Mi Nuevo Addon',
         'description': 'Descripción de la funcionalidad',
+<<<<<<< Updated upstream
         'route': '/mi_ruta',
         'view_func': mi_funcion_vista,
+=======
+        'route': '/mi-ruta',
+        'view_func': main_view,
+>>>>>>> Stashed changes
         'template': 'mi_nuevo_addon.html',
         'icon': 'chart-bar',  # Icono de FontAwesome
         'active': True,
@@ -94,16 +336,31 @@ if __name__ != '__main__':
     register_addon()
 ```
 
+<<<<<<< Updated upstream
 ### 2. Crear la Plantilla HTML
+=======
+#### 2. Crear la Plantilla HTML Principal
+>>>>>>> Stashed changes
 
-Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejemplo: `templates/mi_nuevo_addon.html`.
+Cada addon necesita al menos una plantilla HTML principal en el directorio `templates/`. Por ejemplo: `templates/mi_nuevo_addon.html`.
 
 ```html
 {% extends 'base.html' %}
 
 {% block title %}Mi Nuevo Addon - Analizador de Trading DAS{% endblock %}
 
+<<<<<<< Updated upstream
 {% block header %}Mi Nuevo Addon{% endblock %}
+=======
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Mi Nuevo Addon</h1>
+    <a href="{{ url_for('addon_mi_nuevo_addon.main_view', action='accion1') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-cog fa-sm text-white-50"></i> Acción 1
+    </a>
+</div>
+{% endblock %}
+>>>>>>> Stashed changes
 
 {% block content %}
 <div class="row">
@@ -114,6 +371,12 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
                 <h6 class="m-0 font-weight-bold text-primary">Título de la Sección</h6>
             </div>
             <div class="card-body">
+                {% if error %}
+                    <div class="alert alert-danger">
+                        Error: {{ error }}
+                    </div>
+                {% endif %}
+                
                 <!-- Tu contenido específico -->
                 <p>Contenido personalizado del addon</p>
                 
@@ -140,6 +403,13 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
                 {% else %}
                     <p class="text-center text-muted">No hay datos disponibles</p>
                 {% endif %}
+                
+                <!-- Enlaces a otras acciones -->
+                <div class="mt-4">
+                    <a href="{{ url_for('addon_mi_nuevo_addon.main_view', action='accion2') }}" class="btn btn-info">
+                        <i class="fas fa-edit"></i> Ir a Acción 2
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -165,17 +435,17 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
 {% block scripts %}
 <script>
     // Datos para los gráficos
-    const miAnalisisData = {{ mi_analisis_json|safe }};
+    const miAnalisisData = {{ mi_analisis_json|default('[]')|safe }};
     
     // Configurar gráfico
     const ctx = document.getElementById('miGrafico').getContext('2d');
     new Chart(ctx, {
         type: 'bar',  // Tipo de gráfico (bar, line, pie, etc.)
         data: {
-            labels: miAnalisisData.map(item => item.campo1),
+            labels: miAnalisisData.map(item => item.campo1 || ''),
             datasets: [{
                 label: 'Mi Datos',
-                data: miAnalisisData.map(item => item.campo2),
+                data: miAnalisisData.map(item => item.campo2 || 0),
                 backgroundColor: 'rgba(78, 115, 223, 0.8)',
                 borderColor: 'rgb(78, 115, 223)',
                 borderWidth: 1
@@ -191,27 +461,114 @@ Cada addon necesita una plantilla HTML en el directorio `templates/`. Por ejempl
 {% endblock %}
 ```
 
+<<<<<<< Updated upstream
 ### 3. Estructura del Registro de Addons
+=======
+#### 3. Crear Plantillas Adicionales para Diferentes Acciones
+>>>>>>> Stashed changes
 
-Al registrar un addon en el sistema, se debe proporcionar un diccionario con los siguientes datos:
+Para cada acción adicional, crea una plantilla separada. Por ejemplo: `templates/accion1_template.html`.
 
-```python
-AddonRegistry.register('nombre_clave', {
-    'name': 'Nombre Mostrado',           # Nombre visible en la UI
-    'description': 'Descripción',        # Descripción breve
-    'route': '/ruta_url',                # URL de acceso al addon
-    'view_func': funcion_vista,          # Función principal que maneja la vista
-    'template': 'plantilla.html',        # Nombre del archivo de plantilla
-    'icon': 'icono-fontawesome',         # Icono de FontAwesome (sin 'fa-')
-    'active': True,                      # Estado activo/inactivo
-    'version': '1.0.0',                  # Versión del addon
-    'author': 'Autor'                    # Nombre del autor
-})
+```html
+{% extends 'base.html' %}
+
+{% block title %}Acción 1 - Mi Nuevo Addon - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Acción 1</h1>
+    <a href="{{ url_for('addon_mi_nuevo_addon.main_view') }}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Contenido específico de la acción 1 -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Detalles de Acción 1</h6>
+    </div>
+    <div class="card-body">
+        <p>Este es el contenido específico para la Acción 1.</p>
+        <!-- Más contenido... -->
+    </div>
+</div>
+{% endblock %}
+```
+
+Y otra para la acción con formulario: `templates/accion2_template.html`.
+
+```html
+{% extends 'base.html' %}
+
+{% block title %}Acción 2 - Mi Nuevo Addon - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Formulario - Acción 2</h1>
+    <a href="{{ url_for('addon_mi_nuevo_addon.main_view') }}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Formulario de ejemplo -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Formulario de Ejemplo</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('addon_mi_nuevo_addon.main_view', action='accion2') }}">
+            <div class="form-group">
+                <label for="campo1">Campo 1</label>
+                <input type="text" class="form-control" id="campo1" name="campo1" required>
+            </div>
+            <div class="form-group">
+                <label for="campo2">Campo 2</label>
+                <input type="number" class="form-control" id="campo2" name="campo2" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Enviar</button>
+            <a href="{{ url_for('addon_mi_nuevo_addon.main_view') }}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
 ```
 
 ## Acceso a Datos
 
+<<<<<<< Updated upstream
 Los addons tienen acceso a los datos procesados a través del servicio de caché:
+=======
+Los addons tienen dos formas de acceder a los datos procesados:
+
+### Método 1: Variable Global con Manejo Robusto (Recomendado)
+
+```python
+try:
+    # Intentar obtener datos directamente
+    from app import processed_data
+except ImportError:
+    # Si no se puede importar directamente, intentar desde la caché
+    from config import Config
+    from services.cache_manager import load_processed_data
+    processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+
+# Verificar que hay datos y proporcionar valor predeterminado
+if processed_data is None:
+    flash('No hay datos disponibles. Por favor, sube los archivos primero.', 'warning')
+    processed_data = {}
+
+# Acceder a componentes específicos con values predeterminados
+processed_orders = processed_data.get('processed_orders', [])
+metrics = processed_data.get('metrics', {})
+symbol_performance = processed_data.get('symbol_performance', [])
+```
+
+### Método 2: Servicio de Caché Directo
+>>>>>>> Stashed changes
 
 ```python
 from config import Config
@@ -229,6 +586,7 @@ buysell_performance = processed_data.get('buysell_performance', [])
 equity_curve = processed_data.get('equity_curve', [])
 ```
 
+<<<<<<< Updated upstream
 ## Ejemplos de Addons
 
 ### Ejemplo 1: Análisis por Día de la Semana
@@ -617,6 +975,29 @@ def register_addon():
 5. **Encapsulación**: Evita modificar datos globales directamente.
 6. **Consistencia Visual**: Mantén un estilo coherente con el resto de la aplicación.
 7. **Validación de Datos**: Siempre valida los datos antes de procesarlos.
+=======
+## Mejores Prácticas Adicionales
+
+1. **Modularidad**: Mantén cada addon como una unidad independiente con responsabilidades claramente definidas.
+
+2. **Manejo de Errores**: Siempre usa bloques try/except para capturar y manejar errores de forma robusta.
+
+3. **Valores Predeterminados**: Proporciona valores predeterminados para todos los datos que podrían ser None.
+
+4. **URLs Correctas**: Usa siempre el formato `addon_[nombre_addon].[funcion]` en las referencias URL.
+
+5. **Una Ruta Principal**: Usa una única ruta base con parámetros de acción para addons complejos.
+
+6. **Validación de Datos**: Siempre valida los datos antes de procesarlos.
+
+7. **Seguridad**: No ejecutes código no confiable o que pueda comprometer la aplicación.
+
+8. **Documentación**: Documenta claramente el propósito, funcionalidad y uso de tu addon.
+
+9. **Pruebas**: Implementa pruebas unitarias para tu addon para verificar su funcionamiento.
+
+10. **Rendimiento**: Optimiza los cálculos para grandes conjuntos de datos.
+>>>>>>> Stashed changes
 
 ## Depuración de Addons
 
@@ -634,9 +1015,75 @@ def mi_funcion():
     logger.error("Error crítico")
 ```
 
+<<<<<<< Updated upstream
 ## Conclusión
 
 El sistema de addons de DAS Trader Analyzer proporciona una forma flexible y potente de extender la funcionalidad de la aplicación. Siguiendo esta guía, puedes crear addons que se integren perfectamente con la aplicación principal y proporcionen nuevas características a los usuarios.
+=======
+También puedes aprovechar los mensajes de depuración incorporados en la aplicación:
+
+```python
+# Agregar mensajes de depuración
+print("[DEBUG] Entrando en main_view()")
+print(f"[DEBUG] Processed data: {processed_data is not None}")
+```
+
+## Resolución de Problemas Comunes
+
+### 1. Error: "Could not build url for endpoint..."
+
+**Problema**: No se puede construir la URL para un endpoint del addon.
+
+**Solución**: Asegúrate de usar el formato correcto con el prefijo `addon_`:
+```html
+<!-- Incorrecto -->
+<a href="{{ url_for('mi_addon.main_view') }}">Enlace</a>
+
+<!-- Correcto -->
+<a href="{{ url_for('addon_mi_addon.main_view') }}">Enlace</a>
+```
+
+### 2. Error: "Ruta '/mi-ruta' ya registrada..."
+
+**Problema**: Conflicto de rutas entre addons.
+
+**Solución**: Usa rutas únicas para cada addon y verifica que no exista otro addon con la misma ruta:
+```python
+# Usa un prefijo único para tu addon
+route = '/mi-prefijo-mi-ruta'
+```
+
+### 3. Error: Addon no aparece en la barra lateral
+
+**Problema**: El addon se registra pero no aparece en la barra lateral.
+
+**Solución**: Verifica que 'active' esté configurado como True en el registro del addon:
+```python
+AddonRegistry.register('mi_addon', {
+    # ... otras propiedades ...
+    'active': True
+})
+```
+
+### 4. Error: Los datos procesados son None
+
+**Problema**: Los datos procesados no están disponibles.
+
+**Solución**: Implementa un manejo robusto con valores predeterminados:
+```python
+try:
+    from app import processed_data
+except ImportError:
+    processed_data = None
+
+if processed_data is None:
+    processed_data = {}  # Valor predeterminado vacío
+```
+
+## Conclusión
+
+El sistema de addons de DAS Trader Analyzer proporciona una forma flexible y potente de extender la funcionalidad de la aplicación. Siguiendo las pautas y mejores prácticas de esta documentación, podrás crear addons robustos y funcionales que se integren perfectamente con la aplicación principal.
+>>>>>>> Stashed changes
 
 ## Referencia Rápida
 
@@ -660,11 +1107,51 @@ AddonRegistry.register('nombre_clave', {
 })
 ```
 
-### Acceso a Datos Procesados
+### Patrón Recomendado
 ```python
+<<<<<<< Updated upstream
 from config import Config
 from services.cache_manager import load_processed_data
 
 processed_data = load_processed_data(Config.DATA_CACHE_PATH)
 processed_orders = processed_data.get('processed_orders', [])
+=======
+@addon_bp.route('/mi-ruta')
+def main_view():
+    """Función principal del addon"""
+    try:
+        # Obtener datos procesados (manejo robusto)
+        try:
+            from app import processed_data
+        except ImportError:
+            from config import Config
+            from services.cache_manager import load_processed_data
+            processed_data = load_processed_data(Config.DATA_CACHE_PATH)
+            
+        if processed_data is None:
+            processed_data = {}
+            
+        # Obtener acción
+        action = request.args.get('action', 'default')
+        
+        # Manejar diferentes acciones
+        if action == 'accion1':
+            # Lógica para acción 1
+        elif action == 'accion2':
+            # Lógica para acción 2
+        else:
+            # Acción por defecto
+            
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        # Manejo de errores y vista fallback
+```
+
+### Referencias URL en Plantillas
+```html
+<!-- Formato correcto para URL -->
+<a href="{{ url_for('addon_mi_addon.main_view') }}">Principal</a>
+<a href="{{ url_for('addon_mi_addon.main_view', action='accion1') }}">Acción 1</a>
+<a href="{{ url_for('addon_mi_addon.main_view', action='accion2', param='valor') }}">Acción 2</a>
+>>>>>>> Stashed changes
 ```

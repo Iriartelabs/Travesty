@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Bot de Trading - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Crear Bot de Trading</h1>
+    <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main') }}" class="d-none d-sm-inline-block btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm text-white-50"></i> Volver a Bots
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Configuración del Bot</h6>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/alpaca-bots?action=create" id="botForm">
+                    <!-- Información Básica -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="bot_name"><strong>Nombre del Bot</strong></label>
+                                <input type="text" class="form-control" id="bot_name" name="bot_name" required>
+                                <small class="form-text text-muted">Nombre descriptivo para identificar este bot</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="strategy"><strong>Estrategia</strong></label>
+                                <select class="form-control" id="strategy" name="strategy" required>
+                                    <option value="">Seleccionar estrategia...</option>
+                                    <option value="sma_crossover">Cruce de Medias Móviles</option>
+                                    <option value="rsi_strategy">Estrategia RSI</option>
+                                    <option value="macd_strategy">Estrategia MACD</option>
+                                </select>
+                                <small class="form-text text-muted">Algoritmo de trading que utilizará este bot</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="symbols"><strong>Símbolos</strong></label>
+                                <input type="text" class="form-control" id="symbols" name="symbols" required>
+                                <small class="form-text text-muted">Símbolos separados por coma (ej: AAPL, MSFT, TSLA)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="check_interval"><strong>Intervalo de Verificación (segundos)</strong></label>
+                                <input type="number" class="form-control" id="check_interval" name="check_interval" value="60" min="10" required>
+                                <small class="form-text text-muted">Frecuencia con la que el bot verificará condiciones</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modo de Trading -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group form-check ml-2">
+                                <input type="checkbox" class="form-check-input" id="paper_trading" name="paper_trading" checked>
+                                <label class="form-check-label" for="paper_trading">Usar Paper Trading (sin riesgo real)</label>
+                                <small class="d-block form-text text-muted">Mantén activada esta opción para operar en un entorno simulado sin dinero real</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gestión de Riesgo -->
+                    <div class="card mb-4 border-left-warning">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-warning">Gestión de Riesgo</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="risk_percentage"><strong>Riesgo por Operación (%)</strong></label>
+                                        <input type="number" class="form-control" id="risk_percentage" name="risk_percentage" value="2" step="0.1" min="0.1" max="10" required>
+                                        <small class="form-text text-muted">% del capital a arriesgar en cada operación</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="stop_loss_pct"><strong>Stop Loss Predeterminado (%)</strong></label>
+                                        <input type="number" class="form-control" id="stop_loss_pct" name="stop_loss_pct" value="1" step="0.1" min="0.1" max="10" required>
+                                        <small class="form-text text-muted">% de caída para activar stop loss</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="min_position"><strong>Posición Mínima</strong></label>
+                                        <input type="number" class="form-control" id="min_position" name="min_position" value="1" min="1" required>
+                                        <small class="form-text text-muted">Número mínimo de acciones a comprar</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="max_position"><strong>Posición Máxima</strong></label>
+                                        <input type="number" class="form-control" id="max_position" name="max_position" value="100" min="1" required>
+                                        <small class="form-text text-muted">Número máximo de acciones a comprar</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parámetros de Estrategia -->
+                    <div class="card mb-4 border-left-primary">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Parámetros de Estrategia</h6>
+                        </div>
+                        <div class="card-body">
+                            <!-- Parámetros para SMA Crossover -->
+                            <div id="sma_params" class="strategy-params" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="short_period"><strong>Período SMA Corto</strong></label>
+                                            <input type="number" class="form-control" id="short_period" name="short_period" value="9" min="2" max="50">
+                                            <small class="form-text text-muted">Período para la media móvil corta</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="long_period"><strong>Período SMA Largo</strong></label>
+                                            <input type="number" class="form-control" id="long_period" name="long_period" value="21" min="5" max="200">
+                                            <small class="form-text text-muted">Período para la media móvil larga</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Esta estrategia compra cuando la SMA corta cruza por encima de la SMA larga, y vende cuando cruza por debajo.
+                                </div>
+                            </div>
+
+                            <!-- Parámetros para RSI Strategy -->
+                            <div id="rsi_params" class="strategy-params" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="rsi_period"><strong>Período RSI</strong></label>
+                                            <input type="number" class="form-control" id="rsi_period" name="rsi_period" value="14" min="2" max="50">
+                                            <small class="form-text text-muted">Período para el cálculo del RSI</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="overbought"><strong>Nivel de Sobrecompra</strong></label>
+                                            <input type="number" class="form-control" id="overbought" name="overbought" value="70" min="50" max="90">
+                                            <small class="form-text text-muted">Nivel para considerar sobrecompra</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="oversold"><strong>Nivel de Sobreventa</strong></label>
+                                            <input type="number" class="form-control" id="oversold" name="oversold" value="30" min="10" max="50">
+                                            <small class="form-text text-muted">Nivel para considerar sobreventa</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Esta estrategia compra cuando el RSI sale de la zona de sobreventa, y vende cuando entra en la zona de sobrecompra.
+                                </div>
+                            </div>
+
+                            <!-- Parámetros para MACD Strategy -->
+                            <div id="macd_params" class="strategy-params" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="fast_period"><strong>Período Rápido</strong></label>
+                                            <input type="number" class="form-control" id="fast_period" name="fast_period" value="12" min="2" max="50">
+                                            <small class="form-text text-muted">Período para EMA rápida</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="slow_period"><strong>Período Lento</strong></label>
+                                            <input type="number" class="form-control" id="slow_period" name="slow_period" value="26" min="5" max="100">
+                                            <small class="form-text text-muted">Período para EMA lenta</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="signal_period"><strong>Período de Señal</strong></label>
+                                            <input type="number" class="form-control" id="signal_period" name="signal_period" value="9" min="2" max="50">
+                                            <small class="form-text text-muted">Período para línea de señal</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Esta estrategia compra cuando la línea MACD cruza por encima de la línea de señal, y vende cuando cruza por debajo.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-robot"></i> Crear Bot de Trading
+                        </button>
+                        <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main') }}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Mostrar/ocultar parámetros según la estrategia seleccionada
+    $("#strategy").change(function() {
+        // Ocultar todos los parámetros
+        $(".strategy-params").hide();
+        
+        // Mostrar los parámetros correspondientes a la estrategia seleccionada
+        var strategy = $(this).val();
+        if (strategy === "sma_crossover") {
+            $("#sma_params").show();
+        } else if (strategy === "rsi_strategy") {
+            $("#rsi_params").show();
+        } else if (strategy === "macd_strategy") {
+            $("#macd_params").show();
+        }
+    });
+    
+    // Validación del formulario
+    $("form").submit(function(event) {
+        var strategy = $("#strategy").val();
+        
+        if (!strategy) {
+            alert("Por favor, selecciona una estrategia.");
+            event.preventDefault();
+            return false;
+        }
+        
+        var symbols = $("#symbols").val().trim();
+        if (!symbols) {
+            alert("Por favor, ingresa al menos un símbolo.");
+            event.preventDefault();
+            return false;
+        }
+        
+        return true;
+    });
+});
+</script>
+{% endblock %}

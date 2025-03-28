@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block title %}Alpaca Trading Bots - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Alpaca Trading Bots</h1>
+    <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main', action='create') }}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> Crear nuevo bot
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Resumen de Bots -->
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total de Bots</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bots|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-robot fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Bots Activos</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bots|selectattr('status', 'equalto', 'running')|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-play-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Bots Detenidos</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bots|selectattr('status', 'equalto', 'stopped')|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-pause-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Bots con Error</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ bots|selectattr('status', 'equalto', 'error')|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Bots -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Bots de Trading</h6>
+    </div>
+    <div class="card-body">
+        {% if bots %}
+        <div class="table-responsive">
+            <table class="table table-bordered" id="botsTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Estrategia</th>
+                        <th>Símbolos</th>
+                        <th>Estado</th>
+                        <th>Modo</th>
+                        <th>Operaciones</th>
+                        <th>Creado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bot in bots %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main', action='details', bot_id=bot.bot_id) }}">
+                                {{ bot.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if bot.strategy == 'sma_crossover' %}
+                                Cruce de Medias Móviles
+                            {% elif bot.strategy == 'rsi_strategy' %}
+                                Estrategia RSI
+                            {% elif bot.strategy == 'macd_strategy' %}
+                                Estrategia MACD
+                            {% else %}
+                                {{ bot.strategy }}
+                            {% endif %}
+                        </td>
+                        <td>{{ bot.symbols|join(', ') }}</td>
+                        <td>
+                            {% if bot.status == 'running' %}
+                                <span class="badge badge-success">Activo</span>
+                            {% elif bot.status == 'stopped' %}
+                                <span class="badge badge-warning">Detenido</span>
+                            {% elif bot.status == 'error' %}
+                                <span class="badge badge-danger" data-toggle="tooltip" title="{{ bot.error_message }}">Error</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if bot.paper_trading %}
+                                <span class="badge badge-info">Paper Trading</span>
+                            {% else %}
+                                <span class="badge badge-dark">Trading Real</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ bot.trades_count }}</td>
+                        <td>{{ bot.created_at }}</td>
+                        <td>
+                            <div class="btn-group">
+                                {% if bot.status == 'running' %}
+                                    <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='stop', bot_id=bot.bot_id) }}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-stop"></i> Detener
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='start', bot_id=bot.bot_id) }}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-play"></i> Iniciar
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                
+                                <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='delete', bot_id=bot.bot_id) }}" method="post" style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este bot?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="lead text-muted">No hay bots de trading configurados.</p>
+            <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main', action='create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crear nuevo bot
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Información sobre Alpaca -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Acerca de Alpaca</h6>
+    </div>
+    <div class="card-body">
+        <p>Alpaca es un corredor de bolsa que ofrece una API para trading algorítmico. Puedes conectar los bots de trading con tu cuenta de Alpaca para automatizar tus estrategias.</p>
+        <p>Características principales:</p>
+        <ul>
+            <li>API fácil de usar para operaciones de mercado</li>
+            <li>Cuenta de paper trading para probar estrategias sin riesgo</li>
+            <li>Datos de mercado en tiempo real</li>
+            <li>Integración con DAS Trader para ejecución de órdenes</li>
+        </ul>
+        <p>Para obtener una cuenta de Alpaca, visita <a href="https://alpaca.markets/" target="_blank">alpaca.markets</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Inicializar tabla de bots
+    $('#botsTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+        },
+        "order": [[6, 'desc']] // Ordenar por fecha de creación (descendente)
+    });
+    
+    // Activar tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Actualizar estado de bots cada 30 segundos
+    setInterval(function() {
+        $.getJSON("{{ url_for('addon_alpaca_bots_addon.trading_bots_main', action='api_status') }}", function(data) {
+            // Actualizar contadores
+            let running = 0;
+            let stopped = 0;
+            let error = 0;
+            
+            $.each(data, function(index, bot) {
+                if (bot.status === 'running') running++;
+                else if (bot.status === 'stopped') stopped++;
+                else if (bot.status === 'error') error++;
+            });
+            
+            // Actualizar elementos en la interfaz
+            $('.text-primary + .h5').text(data.length);
+            $('.text-success + .h5').text(running);
+            $('.text-warning + .h5').text(stopped);
+            $('.text-danger + .h5').text(error);
+        });
+    }, 30000);
+});
+</script>
+{% endblock %}

@@ -10,6 +10,9 @@ from collections import defaultdict
 from config import Config
 from services.cache_manager import load_processed_data
 
+# Control de registro único
+_is_registered = False
+
 def analyze_trader_performance(orders):
     """
     Analyze trading performance broken down by individual traders
@@ -116,6 +119,10 @@ def register_addon():
     """
     Register the trader performance addon in the system
     """
+    global _is_registered
+    if _is_registered:
+        return
+        
     AddonRegistry.register('trader_performance', {
         'name': 'Trader Performance',
         'description': 'Detailed performance analysis by individual traders',
@@ -127,6 +134,8 @@ def register_addon():
         'version': '1.0.0',
         'author': 'DAS Trader Analyzer Team'
     })
+    
+    _is_registered = True
 
 # Automatically register when imported
 if __name__ != '__main__':

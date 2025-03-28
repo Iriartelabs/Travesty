@@ -18,10 +18,16 @@ class AddonRegistry:
     _sidebar_items = []
     _initialized = False
     _app = None  # Referencia a la aplicación Flask
+    _registered_modules = set()  # Conjunto para registrar módulos ya cargados
     
     @classmethod
     def register(cls, name, metadata):
         """Registra un nuevo addon en el sistema"""
+        # Verificar si el módulo ya fue registrado (por nombre)
+        if name in cls._registered_modules:
+            logger.debug(f"Addon '{name}' ya fue registrado anteriormente, ignorando.")
+            return True
+            
         # Verificar si ya existe un addon con la misma ruta
         for existing_name, existing_meta in cls._addons.items():
             if existing_meta['route'] == metadata['route']:
@@ -40,6 +46,8 @@ class AddonRegistry:
                             'icon': metadata['icon']
                         }
                 
+                # Marcar como registrado
+                cls._registered_modules.add(name)
                 return True
         
         # Verificar si el nombre ya existe
@@ -72,6 +80,8 @@ class AddonRegistry:
             except Exception as e:
                 logger.error(f"No se pudo registrar la ruta dinámicamente: {e}")
         
+        # Marcar como registrado
+        cls._registered_modules.add(name)
         logger.info(f"Addon '{name}' registrado correctamente.")
         return True
     
@@ -161,6 +171,12 @@ def load_addons_from_directory(directory='addons'):
         module_name = filename[:-3]  # Quitar .py
         module_path = os.path.join(directory, filename)
         
+        # Verificar si el módulo ya fue registrado
+        if module_name in AddonRegistry._registered_modules:
+            logger.debug(f"Addon '{module_name}' ya fue registrado anteriormente, ignorando.")
+            loaded_count += 1
+            continue
+        
         try:
             # Cargar el módulo dinámicamente
             spec = importlib.util.spec_from_file_location(module_name, module_path)
@@ -207,6 +223,9 @@ from addon_system import AddonRegistry
 from flask import render_template, redirect, url_for, flash
 import json
 
+# Control de registro único
+_is_registered = False
+
 def {module_name}_view():
     """Vista principal para el addon {name}"""
     # Importar la variable global desde app.py
@@ -234,6 +253,10 @@ def {module_name}_view():
 
 def register_addon():
     """Registra este addon en el sistema"""
+    global _is_registered
+    if _is_registered:
+        return
+        
     AddonRegistry.register('{module_name}', {{
         'name': '{name}',
         'description': '{description}',
@@ -245,6 +268,8 @@ def register_addon():
         'version': '1.0.0',
         'author': 'DAS Trader Analyzer User'
     }})
+    
+    _is_registered = True
 
 # Registrar automáticamente al importar
 if __name__ != '__main__':

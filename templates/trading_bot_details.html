@@ -1,0 +1,529 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ bot.name }} - Detalles del Bot - DAS Trader Analyzer{% endblock %}
+
+{% block header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="fas fa-robot text-primary mr-2"></i> {{ bot.name }}
+    </h1>
+    <div>
+        {% if bot.status == 'running' %}
+            <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='stop', bot_id=bot.bot_id) }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-warning shadow-sm mr-2">
+                    <i class="fas fa-stop fa-sm"></i> Detener Bot
+                </button>
+            </form>
+        {% else %}
+            <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='start', bot_id=bot.bot_id) }}" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-success shadow-sm mr-2">
+                    <i class="fas fa-play fa-sm"></i> Iniciar Bot
+                </button>
+            </form>
+        {% endif %}
+        <a href="{{ url_for('addon_alpaca_bots_addon.trading_bots_main') }}" class="btn btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm"></i> Volver a Bots
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Información del Bot -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Información del Bot</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                        <div class="dropdown-header">Acciones:</div>
+                        <form action="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='delete', bot_id=bot.bot_id) }}" method="post" onsubmit="return confirm('¿Estás seguro de eliminar este bot?');">
+                            <button type="submit" class="dropdown-item text-danger">
+                                <i class="fas fa-trash fa-sm fa-fw mr-2 text-danger"></i>Eliminar Bot
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-borderless">
+                        <tbody>
+                            <tr>
+                                <th width="150">ID:</th>
+                                <td><code>{{ bot.bot_id }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Estado:</th>
+                                <td>
+                                    {% if bot.status == 'running' %}
+                                        <span class="badge badge-success">Activo</span>
+                                    {% elif bot.status == 'stopped' %}
+                                        <span class="badge badge-warning">Detenido</span>
+                                    {% elif bot.status == 'error' %}
+                                        <span class="badge badge-danger">Error</span>
+                                        <p class="text-danger mt-1 mb-0"><small>{{ bot.error_message }}</small></p>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Estrategia:</th>
+                                <td>
+                                    {% if bot.strategy == 'sma_crossover' %}
+                                        <span class="badge badge-primary">Cruce de Medias Móviles</span>
+                                    {% elif bot.strategy == 'rsi_strategy' %}
+                                        <span class="badge badge-info">Estrategia RSI</span>
+                                    {% elif bot.strategy == 'macd_strategy' %}
+                                        <span class="badge badge-secondary">Estrategia MACD</span>
+                                    {% else %}
+                                        <span class="badge badge-dark">{{ bot.strategy }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Símbolo(s):</th>
+                                <td>
+                                    {% for symbol in bot.symbols %}
+                                        <span class="badge badge-light">{{ symbol }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Modo:</th>
+                                <td>
+                                    {% if bot.paper_trading %}
+                                        <span class="badge badge-info">Paper Trading</span>
+                                        <small class="text-muted d-block">Operaciones simuladas sin dinero real</small>
+                                    {% else %}
+                                        <span class="badge badge-danger">Trading Real</span>
+                                        <small class="text-danger d-block">Operaciones con dinero real</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>API Key:</th>
+                                <td><code>{{ bot_data.api_key }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Creado:</th>
+                                <td>{{ bot_data.created_at }}</td>
+                            </tr>
+                            <tr>
+                                <th>Última ejecución:</th>
+                                <td>{{ bot_data.last_run if bot_data.last_run else 'Nunca ejecutado' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parámetros de la Estrategia -->
+    <div class="col-lg-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Parámetros de la Estrategia</h6>
+            </div>
+            <div class="card-body">
+                <!-- Parámetros generales -->
+                <h5 class="text-dark mb-3">Parámetros Generales</h5>
+                <div class="table-responsive mb-4">
+                    <table class="table table-borderless table-sm">
+                        <tbody>
+                            <tr>
+                                <th width="200">Intervalo de verificación:</th>
+                                <td>{{ bot.params.check_interval }} segundos</td>
+                            </tr>
+                            <tr>
+                                <th>Riesgo por operación:</th>
+                                <td>{{ bot.params.risk_percentage }}% del capital</td>
+                            </tr>
+                            <tr>
+                                <th>Stop Loss predeterminado:</th>
+                                <td>{{ bot.params.stop_loss_pct }}% por debajo de la entrada</td>
+                            </tr>
+                            <tr>
+                                <th>Tamaño de posición:</th>
+                                <td>Entre {{ bot.params.min_position }} y {{ bot.params.max_position }} acciones</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Parámetros específicos de la estrategia -->
+                <h5 class="text-dark mb-3">Parámetros Específicos</h5>
+                
+                {% if bot.strategy == 'sma_crossover' %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-sm">
+                            <tbody>
+                                <tr>
+                                    <th width="200">Período SMA Corto:</th>
+                                    <td>{{ bot.params.short_period }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Período SMA Largo:</th>
+                                    <td>{{ bot.params.long_period }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> Esta estrategia compra cuando la SMA corta cruza por encima de la SMA larga, y vende cuando cruza por debajo.
+                    </div>
+                
+                {% elif bot.strategy == 'rsi_strategy' %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-sm">
+                            <tbody>
+                                <tr>
+                                    <th width="200">Período RSI:</th>
+                                    <td>{{ bot.params.rsi_period }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Nivel de Sobrecompra:</th>
+                                    <td>{{ bot.params.overbought }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Nivel de Sobreventa:</th>
+                                    <td>{{ bot.params.oversold }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> Esta estrategia compra cuando el RSI sale de la zona de sobreventa, y vende cuando entra en la zona de sobrecompra.
+                    </div>
+                
+                {% elif bot.strategy == 'macd_strategy' %}
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-sm">
+                            <tbody>
+                                <tr>
+                                    <th width="200">Período Rápido:</th>
+                                    <td>{{ bot.params.fast_period }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Período Lento:</th>
+                                    <td>{{ bot.params.slow_period }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Período de Señal:</th>
+                                    <td>{{ bot.params.signal_period }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> Esta estrategia compra cuando la línea MACD cruza por encima de la línea de señal, y vende cuando cruza por debajo.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historial de Operaciones -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Historial de Operaciones</h6>
+    </div>
+    <div class="card-body">
+        {% if trades %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="tradesTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Símbolo</th>
+                            <th>Acción</th>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                            <th>ID Orden</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trade in trades %}
+                            <tr>
+                                <td>{{ trade.timestamp }}</td>
+                                <td>{{ trade.symbol }}</td>
+                                <td>
+                                    {% if trade.action == 'buy' %}
+                                        <span class="text-success">Compra</span>
+                                    {% elif trade.action == 'sell' %}
+                                        <span class="text-danger">Venta</span>
+                                    {% else %}
+                                        {{ trade.action }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ trade.quantity }}</td>
+                                <td>${{ "%.2f"|format(trade.price) }}</td>
+                                <td><code>{{ trade.order_id }}</code></td>
+                                <td>
+                                    {% if trade.status == 'filled' %}
+                                        <span class="badge badge-success">Ejecutada</span>
+                                    {% elif trade.status == 'new' or trade.status == 'accepted' %}
+                                        <span class="badge badge-info">Pendiente</span>
+                                    {% elif trade.status == 'canceled' %}
+                                        <span class="badge badge-warning">Cancelada</span>
+                                    {% elif trade.status == 'rejected' %}
+                                        <span class="badge badge-danger">Rechazada</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ trade.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="lead text-muted">Este bot aún no ha realizado operaciones.</p>
+                {% if bot.status != 'running' %}
+                    <p class="mt-2">
+                        <a href="{{ url_for('addon_alpaca_bots_addon.bot_actions', action='start', bot_id=bot.bot_id) }}" class="btn btn-success">
+                            <i class="fas fa-play"></i> Iniciar Bot
+                        </a>
+                    </p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Información del Mercado -->
+<div class="row">
+    <!-- Gráfico de Rendimiento (Marcador de posición) -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Gráfico de Rendimiento</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <p class="text-muted">El gráfico de rendimiento se mostrará aquí una vez que el bot haya realizado operaciones.</p>
+                    <!-- El gráfico se agregará mediante JavaScript cuando haya datos -->
+                    <div class="chart-area" style="height: 300px; display: none;">
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas de Rendimiento -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Estadísticas</h6>
+            </div>
+            <div class="card-body">
+                {% if trades %}
+                    <div id="statistics">
+                        <!-- Las estadísticas se agregarán mediante JavaScript -->
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No hay suficientes datos para mostrar estadísticas.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Inicializar tabla de operaciones
+    if ($('#tradesTable').length) {
+        $('#tradesTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json"
+            },
+            "order": [[0, 'desc']] // Ordenar por fecha/hora (descendente)
+        });
+    }
+    
+    // Calcular estadísticas si hay operaciones
+    {% if trades %}
+        var trades = {{ trades|tojson }};
+        var totalTrades = trades.length;
+        var winningTrades = trades.filter(trade => trade.action === 'sell' && trade.price > 0).length;
+        var losingTrades = trades.filter(trade => trade.action === 'sell' && trade.price <= 0).length;
+        var winRate = totalTrades > 0 ? (winningTrades / totalTrades * 100).toFixed(2) : 0;
+        
+        // Calcular P&L total
+        var totalPnL = 0;
+        trades.forEach(trade => {
+            if (trade.action === 'sell') {
+                totalPnL += trade.price * trade.quantity;
+            }
+        });
+        
+        // Actualizar estadísticas en la interfaz
+        var statisticsHtml = `
+            <div class="text-center">
+                <div class="mb-3">
+                    <h4 class="small font-weight-bold">Win Rate <span class="float-right">${winRate}%</span></h4>
+                    <div class="progress mb-4">
+                        <div class="progress-bar ${winRate >= 50 ? 'bg-success' : 'bg-danger'}" role="progressbar" style="width: ${winRate}%"></div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Operaciones</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">${totalTrades}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-xs font-weight-bold text-${totalPnL >= 0 ? 'success' : 'danger'} text-uppercase mb-1">P&L Total</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">$${totalPnL.toFixed(2)}</div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Operaciones Ganadoras</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">${winningTrades}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Operaciones Perdedoras</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">${losingTrades}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#statistics').html(statisticsHtml);
+        
+        // Si hay suficientes datos, mostrar el gráfico de rendimiento
+        if (trades.length > 1) {
+            $('.chart-area').show();
+            
+            // Preparar datos para el gráfico
+            var chartData = {
+                labels: [],
+                pnl: [],
+                cumulative: []
+            };
+            
+            var runningTotal = 0;
+            
+            // Procesar operaciones para el gráfico
+            trades.forEach(trade => {
+                if (trade.action === 'sell') {
+                    var pnl = trade.price * trade.quantity;
+                    runningTotal += pnl;
+                    
+                    chartData.labels.push(trade.timestamp);
+                    chartData.pnl.push(pnl);
+                    chartData.cumulative.push(runningTotal);
+                }
+            });
+            
+            // Crear gráfico
+            var ctx = document.getElementById('performanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [
+                        {
+                            label: 'P&L Acumulado',
+                            data: chartData.cumulative,
+                            borderColor: 'rgba(78, 115, 223, 1)',
+                            backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                            pointRadius: 3,
+                            pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+                            pointBorderColor: 'rgba(78, 115, 223, 1)',
+                            pointHoverRadius: 5,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        xAxes: [{
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM D'
+                                }
+                            },
+                            gridLines: {
+                                display: false
+                            },
+                            ticks: {
+                                maxTicksLimit: 7
+                            }
+                        }],
+                        yAxes: [{
+                            ticks: {
+                                maxTicksLimit: 5,
+                                padding: 10,
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            },
+                            gridLines: {
+                                color: "rgb(234, 236, 244)",
+                                zeroLineColor: "rgb(234, 236, 244)",
+                                drawBorder: false,
+                                borderDash: [2],
+                                zeroLineBorderDash: [2]
+                            }
+                        }]
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltips: {
+                        backgroundColor: "rgb(255,255,255)",
+                        bodyFontColor: "#858796",
+                        titleMarginBottom: 10,
+                        titleFontColor: '#6e707e',
+                        titleFontSize: 14,
+                        borderColor: '#dddfeb',
+                        borderWidth: 1,
+                        xPadding: 15,
+                        yPadding: 15,
+                        displayColors: false,
+                        intersect: false,
+                        mode: 'index',
+                        caretPadding: 10,
+                        callbacks: {
+                            label: function(tooltipItem, chart) {
+                                var datasetLabel = chart.datasets[tooltipItem.datasetIndex].label || '';
+                                return datasetLabel + ': $' + tooltipItem.yLabel.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    {% endif %}
+    
+    // Autoactualización cada 30 segundos si el bot está en ejecución
+    {% if bot.status == 'running' %}
+        setInterval(function() {
+            location.reload();
+        }, 30000);
+    {% endif %}
+});
+</script>
+{% endblock %}
