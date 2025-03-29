@@ -1,0 +1,35 @@
+<h4 class="mb-4">Configuración General</h4>
+
+<form method="post" action="{{ url_for('config.save_general_config') }}">
+    <div class="mb-3">
+        <label for="app_name" class="form-label">Nombre de la Aplicación</label>
+        <input type="text" class="form-control" id="app_name" name="app_name" 
+               value="{{ general_config.app_name|default('Travesty Analyzer') }}">
+        <div class="form-text">Nombre que se mostrará en la interfaz de usuario</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="theme" class="form-label">Tema</label>
+        <select class="form-select" id="theme" name="theme">
+            <option value="default" {% if general_config.theme == 'default' %}selected{% endif %}>
+                Predeterminado
+            </option>
+            <option value="dark" {% if general_config.theme == 'dark' %}selected{% endif %}>
+                Oscuro
+            </option>
+            <option value="light" {% if general_config.theme == 'light' %}selected{% endif %}>
+                Claro
+            </option>
+        </select>
+        <div class="form-text">Tema visual de la aplicación</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="language" class="form-label">Idioma</label>
+        <select class="form-select" id="language" name="language">
+            <option value="es" {% if general_config.language == 'es' %}selected{% endif %}>Español</option>
+            <option value="en" {% if general_config.language == 'en' %}selected{% endif %}>English</option>
+        </select>
+        <div class="form-text">Idioma de la interfaz</div>
+    </div>
+</form>

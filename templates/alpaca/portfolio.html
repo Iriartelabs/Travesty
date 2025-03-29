@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}Portafolio - Alpaca Markets{% endblock %}
+
+{% block header %}Portafolio de Inversiones{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Resumen de la cuenta -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Resumen de Cuenta</h6>
+                <a href="{{ url_for('alpaca.index') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+            </div>
+            
+            <div class="card-body">
+                <div class="row">
+                    <!-- Información general de la cuenta -->
+                    <div class="col-md-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            Capital Total</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ account.equity }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Efectivo disponible -->
+                    <div class="col-md-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            Efectivo Disponible</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ account.cash }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-coins fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Poder de compra -->
+                    <div class="col-md-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            Poder de Compra</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800">${{ account.buying_power }}</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="fas fa-bolt fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">Información de la cuenta</h6>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>ID de cuenta:</strong> {{ account.account_number }}</p>
+                                    <p><strong>Estado:</strong> {{ account.status }}</p>
+                                    <p><strong>Creada el:</strong> {{ account.created_at }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Pattern Day Trader:</strong> {{ 'Sí' if account.pattern_day_trader else 'No' }}</p>
+                                    <p><strong>Trading bloqueado:</strong> {{ 'Sí' if account.trading_blocked else 'No' }}</p>
+                                    <p><strong>Cuenta bloqueada:</strong> {{ 'Sí' if account.account_blocked else 'No' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Posiciones actuales -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Posiciones Actuales</h6>
+            </div>
+            <div class="card-body">
+                {% if positions %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="positionsTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Símbolo</th>
+                                <th>Cantidad</th>
+                                <th>Precio de entrada</th>
+                                <th>Precio actual</th>
+                                <th>Valor</th>
+                                <th>P&L</th>
+                                <th>P&L %</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for position in positions %}
+                            <tr>
+                                <td>{{ position.symbol }}</td>
+                                <td>{{ position.qty }}</td>
+                                <td>${{ position.avg_entry_price }}</td>
+                                <td>${{ position.current_price }}</td>
+                                <td>${{ position.market_value }}</td>
+                                <td class="{% if position.unrealized_pl|float > 0 %}text-success{% elif position.unrealized_pl|float < 0 %}text-danger{% endif %}">
+                                    ${{ position.unrealized_pl }}
+                                </td>
+                                <td class="{% if position.unrealized_plpc|float > 0 %}text-success{% elif position.unrealized_plpc|float < 0 %}text-danger{% endif %}">
+                                    {{ position.unrealized_plpc }}%
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('alpaca.order') }}?symbol={{ position.symbol }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-exchange-alt me-1"></i> Operar
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No tiene posiciones abiertas actualmente.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Órdenes recientes -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Órdenes Recientes</h6>
+                <a href="{{ url_for('alpaca.order') }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus-circle me-1"></i> Nueva Orden
+                </a>
+            </div>
+            <div class="card-body">
+                {% if orders %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="ordersTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Símbolo</th>
+                                <th>Operación</th>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Estado</th>
+                                <th>Creada</th>
+                                <th>Actualizada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>{{ order.id }}</td>
+                                <td>{{ order.symbol }}</td>
+                                <td class="{% if order.side == 'buy' %}text-success{% else %}text-danger{% endif %}">
+                                    {{ order.side|upper }}
+                                </td>
+                                <td>{{ order.type }}</td>
+                                <td>{{ order.qty }}</td>
+                                <td>
+                                    <span class="badge {% if order.status == 'filled' %}bg-success{% elif order.status == 'canceled' %}bg-danger{% elif order.status == 'rejected' %}bg-danger{% else %}bg-warning{% endif %}">
+                                        {{ order.status }}
+                                    </span>
+                                </td>
+                                <td>{{ order.created_at }}</td>
+                                <td>{{ order.updated_at }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No tiene órdenes recientes.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar DataTables si hay tablas
+    if (document.getElementById('positionsTable')) {
+        $('#positionsTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+            },
+            order: [[5, 'desc']]  // Ordenar por P&L descendente
+        });
+    }
+    
+    if (document.getElementById('ordersTable')) {
+        $('#ordersTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Spanish.json'
+            },
+            order: [[6, 'desc']]  // Ordenar por fecha de creación descendente
+        });
+    }
+});
+</script>
+{% endblock %}

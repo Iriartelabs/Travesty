@@ -67,10 +67,10 @@
                             </li>
                             
                             <li class="nav-item">
-                                <a class="nav-link text-white" href="#">
-                                    <i class="fas fa-cog mr-2"></i> Configuración
-                                </a>
-                            </li>
+								<a class="nav-link text-white {% if request.path.startswith('/configuration') %}active{% endif %}" href="{{ url_for('config.index') }}">
+									<i class="fas fa-cog mr-2"></i> Configuración
+								</a>
+							</li>
                         </ul>
                     </div>
                 </div>

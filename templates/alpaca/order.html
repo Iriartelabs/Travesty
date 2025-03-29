@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Nueva Orden - Alpaca Markets{% endblock %}
+
+{% block header %}Nueva Orden{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Crear Nueva Orden</h6>
+                <a href="{{ url_for('alpaca.index') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+            </div>
+            
+            <div class="card-body">
+                <form id="orderForm">
+                    <div class="mb-3">
+                        <label for="symbol" class="form-label">Símbolo</label>
+                        <input type="text" class="form-control" id="symbol" name="symbol" value="{{ symbol }}" required>
+                        <div class="form-text">
+                            Ejemplos: 
+                            {% for s in common_symbols %}
+                            <a href="#" class="symbol-suggestion">{{ s }}</a>{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="side" class="form-label">Operación</label>
+                        <select class="form-select" id="side" name="side" required>
+                            <option value="buy">Comprar</option>
+                            <option value="sell">Vender</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="qty" class="form-label">Cantidad</label>
+                        <input type="number" class="form-control" id="qty" name="qty" min="0.01" step="0.01" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Tipo de Orden</label>
+                        <select class="form-select" id="type" name="type">
+                            <option value="market">Market</option>
+                            <option value="limit">Limit</option>
+                            <option value="stop">Stop</option>
+                            <option value="stop_limit">Stop Limit</option>
+                        </select>
+                    </div>
+                    
+                    <div id="limitPriceContainer" class="mb-3" style="display: none;">
+                        <label for="limitPrice" class="form-label">Precio Límite</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="limitPrice" name="limitPrice" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div id="stopPriceContainer" class="mb-3" style="display: none;">
+                        <label for="stopPrice" class="form-label">Precio Stop</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="stopPrice" name="stopPrice" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="time_in_force" class="form-label">Tiempo en vigor</label>
+                        <select class="form-select" id="time_in_force" name="time_in_force">
+                            <option value="day">Day</option>
+                            <option value="gtc">Good Till Canceled</option>
+                            <option value="opg">Market On Open</option>
+                            <option value="cls">Market On Close</option>
+                            <option value="ioc">Immediate or Cancel</option>
+                            <option value="fok">Fill or Kill</option>
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i> Enviar Orden
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="orderResult" class="mt-4" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar sugerencias de símbolos
+    document.querySelectorAll('.symbol-suggestion').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('symbol').value = this.textContent.trim();
+        });
+    });
+    
+    // Mostrar/ocultar campos según tipo de orden
+    const orderTypeSelect = document.getElementById('type');
+    const limitPriceContainer = document.getElementById('limitPriceContainer');
+    const stopPriceContainer = document.getElementById('stopPriceContainer');
+    const limitPriceInput = document.getElementById('limitPrice');
+    const stopPriceInput = document.getElementById('stopPrice');
+    
+    function updateOrderFields() {
+        const orderType = orderTypeSelect.value;
+        
+        limitPriceContainer.style.display = 'none';
+        stopPriceContainer.style.display = 'none';
+        
+        limitPriceInput.required = false;
+        stopPriceInput.required = false;
+        
+        if (orderType === 'limit' || orderType === 'stop_limit') {
+            limitPriceContainer.style.display = 'block';
+            limitPriceInput.required = true;
+        }
+        
+        if (orderType === 'stop' || orderType === 'stop_limit') {
+            stopPriceContainer.style.display = 'block';
+            stopPriceInput.required = true;
+        }
+    }
+    
+    orderTypeSelect.addEventListener('change', updateOrderFields);
+    updateOrderFields();
+    
+    // Enviar formulario
+    const orderForm = document.getElementById('orderForm');
+    const orderResult = document.getElementById('orderResult');
+    
+    orderForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Recopilar datos del formulario
+        const formData = {
+            symbol: document.getElementById('symbol').value,
+            side: document.getElementById('side').value,
+            qty: document.getElementById('qty').value,
+            type: document.getElementById('type').value,
+            time_in_force: document.getElementById('time_in_force').value
+        };
+        
+        // Añadir campos adicionales según el tipo de orden
+        if (formData.type === 'limit' || formData.type === 'stop_limit') {
+            formData.limit_price = document.getElementById('limitPrice').value;
+        }
+        
+        if (formData.type === 'stop' || formData.type === 'stop_limit') {
+            formData.stop_price = document.getElementById('stopPrice').value;
+        }
+        
+        // Enviar petición AJAX
+        fetch('{{ url_for("alpaca.api_order") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Mostrar resultado
+            orderResult.style.display = 'block';
+            
+            if (data.success) {
+                orderResult.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5 class="alert-heading">¡Orden Creada!</h5>
+                        <p>${data.message}</p>
+                        <p><strong>ID:</strong> ${data.order_id}<br>
+                        <strong>Estado:</strong> ${data.status}</p>
+                    </div>
+                `;
+                
+                // Limpiar formulario
+                orderForm.reset();
+            } else {
+                orderResult.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5 class="alert-heading">Error</h5>
+                        <p>${data.message}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            orderResult.style.display = 'block';
+            orderResult.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading">Error de comunicación</h5>
+                    <p>No se pudo procesar la orden. Por favor, inténtelo nuevamente.</p>
+                </div>
+            `;
+            console.error('Error:', error);
+        });
+    });
+});
+</script>
+{% endblock %}

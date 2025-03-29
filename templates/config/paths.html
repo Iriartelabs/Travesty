@@ -1,0 +1,89 @@
+<h4 class="mb-4">Configuración de Rutas</h4>
+
+<form method="post" action="{{ url_for('config.save_paths_config') }}">
+    <div class="mb-3">
+        <label for="data_folder" class="form-label">Carpeta de datos</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="data_folder" name="data_folder" 
+                   value="{{ paths_config.data_folder|default('data') }}">
+            <button class="btn btn-outline-secondary" type="button" id="browse_data_folder">
+                <i class="fas fa-folder-open"></i>
+            </button>
+        </div>
+        <div class="form-text">Carpeta donde se guardarán los datos procesados y archivos históricos.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="upload_folder" class="form-label">Carpeta de subida temporal</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="upload_folder" name="upload_folder" 
+                   value="{{ paths_config.upload_folder|default('static/uploads') }}">
+            <button class="btn btn-outline-secondary" type="button" id="browse_upload_folder">
+                <i class="fas fa-folder-open"></i>
+            </button>
+        </div>
+        <div class="form-text">Carpeta para archivos temporales durante la subida.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="addons_folder" class="form-label">Carpeta de addons</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="addons_folder" name="addons_folder" 
+                   value="{{ paths_config.addons_folder|default('addons') }}">
+            <button class="btn btn-outline-secondary" type="button" id="browse_addons_folder">
+                <i class="fas fa-folder-open"></i>
+            </button>
+        </div>
+        <div class="form-text">Carpeta donde se instalan los addons.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="default_trades_path" class="form-label">Ruta de archivo de trading predeterminado</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="default_trades_path" name="default_trades_path" 
+                   value="{{ paths_config.default_trades_path|default('data/trades.csv') }}">
+            <button class="btn btn-outline-secondary" type="button" id="browse_default_trades">
+                <i class="fas fa-file-csv"></i>
+            </button>
+        </div>
+        <div class="form-text">Ruta al archivo CSV de trading predeterminado.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="exports_folder" class="form-label">Carpeta de exportaciones</label>
+        <div class="input-group">
+            <input type="text" class="form-control" id="exports_folder" name="exports_folder" 
+                   value="{{ paths_config.exports_folder|default('exports') }}">
+            <button class="btn btn-outline-secondary" type="button" id="browse_exports_folder">
+                <i class="fas fa-folder-open"></i>
+            </button>
+        </div>
+        <div class="form-text">Carpeta donde se guardarán los reportes exportados.</div>
+    </div>
+    
+    <div class="mb-3 form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="create_missing_folders" name="create_missing_folders"
+               {% if paths_config.create_missing_folders|default(true) %}checked{% endif %}>
+        <label class="form-check-label" for="create_missing_folders">Crear carpetas automáticamente</label>
+        <div class="form-text">Crea automáticamente las carpetas si no existen.</div>
+    </div>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> Los cambios en las rutas se aplicarán la próxima vez que inicie la aplicación.
+    </div>
+</form>
+
+<script>
+// Esta funcionalidad normalmente requeriría integración con el backend
+// para mostrar un explorador de archivos del sistema, lo cual
+// es limitado en aplicaciones web por seguridad.
+document.addEventListener('DOMContentLoaded', function() {
+    const browseButtons = document.querySelectorAll('[id^="browse_"]');
+    
+    browseButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            alert('Funcionalidad de explorador de archivos no disponible en esta versión.');
+        });
+    });
+});
+</script>

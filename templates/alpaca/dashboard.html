@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Alpaca Markets - Travesty Analyzer{% endblock %}
+
+{% block header %}Alpaca Markets Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Alpaca Markets</h6>
+                
+                <div>
+                    {% if connection_ok %}
+                    <span class="badge bg-success me-2">
+                        <i class="fas fa-check-circle me-1"></i> Conectado
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger me-2">
+                        <i class="fas fa-times-circle me-1"></i> No conectado
+                    </span>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('config.index', section='providers.alpaca') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog me-1"></i> Configurar
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                {% if not connection_ok %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> No hay conexión con la API de Alpaca. Por favor, configure sus credenciales en la sección de Configuración.
+                    </div>
+                {% else %}
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h5 class="alert-heading">Información de la cuenta</h5>
+                                <hr>
+                                <p><strong>ID de cuenta:</strong> {{ account_info.account_number }}</p>
+                                <p><strong>Estado:</strong> {{ account_info.status }}</p>
+                                <p><strong>Capital:</strong> ${{ account_info.equity|format_number }}</p>
+                                <p><strong>Efectivo:</strong> ${{ account_info.cash|format_number }}</p>
+                                <p><strong>Poder de compra:</strong> ${{ account_info.buying_power|format_number }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Acciones rápidas</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('alpaca.order') }}" class="btn btn-primary">
+                                            <i class="fas fa-plus-circle me-1"></i> Nueva Orden
+                                        </a>
+                                        <a href="{{ url_for('alpaca.portfolio') }}" class="btn btn-info">
+                                            <i class="fas fa-briefcase me-1"></i> Ver Portafolio
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Datos de Mercado</h6>
+                                    <form class="d-flex" action="{{ url_for('alpaca.index') }}" method="get">
+                                        <input type="text" class="form-control form-control-sm me-2" name="symbol" value="{{ symbol }}" placeholder="Símbolo">
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="card-body">
+                                    {% if symbol_data %}
+                                        <div style="height: 400px;">
+                                            <canvas id="priceChart"></canvas>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-info">
+                                            Ingrese un símbolo para ver datos de mercado.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if positions %}
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Posiciones Actuales</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Símbolo</th>
+                                                    <th>Cantidad</th>
+                                                    <th>Entrada</th>
+                                                    <th>Actual</th>
+                                                    <th>P&L</th>
+                                                    <th>P&L %</th>
+                                                    <th>Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for position in positions %}
+                                                <tr>
+                                                    <td>{{ position.symbol }}</td>
+                                                    <td>{{ position.qty }}</td>
+                                                    <td>${{ position.avg_entry_price }}</td>
+                                                    <td>${{ position.current_price }}</td>
+                                                    <td class="{% if position.unrealized_pl|float > 0 %}text-success{% elif position.unrealized_pl|float < 0 %}text-danger{% endif %}">
+                                                        ${{ position.unrealized_pl }}
+                                                    </td>
+                                                    <td class="{% if position.unrealized_plpc|float > 0 %}text-success{% elif position.unrealized_plpc|float < 0 %}text-danger{% endif %}">
+                                                        {{ position.unrealized_plpc }}%
+                                                    </td>
+                                                    <td>
+                                                        <a href="{{ url_for('alpaca.order') }}?symbol={{ position.symbol }}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-exchange-alt"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if symbol_data %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    const dates = {{ symbol_data.dates|tojson }};
+    const prices = {{ symbol_data.prices|tojson }};
+    const volumes = {{ symbol_data.volumes|tojson }};
+    
+    // Crear gráfico
+    const priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: '{{ symbol }} - Precio',
+                    data: prices,
+                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    pointRadius: 3,
+                    pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+                    pointBorderColor: 'rgba(78, 115, 223, 1)',
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: 'rgba(78, 115, 223, 1)',
+                    pointHoverBorderColor: 'rgba(78, 115, 223, 1)',
+                    pointHitRadius: 10,
+                    pointBorderWidth: 2,
+                    yAxisID: 'y',
+                    fill: true
+                },
+                {
+                    label: '{{ symbol }} - Volumen',
+                    data: volumes,
+                    backgroundColor: 'rgba(28, 200, 138, 0.2)',
+                    borderColor: 'rgba(28, 200, 138, 1)',
+                    yAxisID: 'y1',
+                    type: 'bar'
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            if (value >= 1000000) {
+                                return (value / 1000000).toFixed(1) + 'M';
+                            } else if (value >= 1000) {
+                                return (value / 1000).toFixed(1) + 'K';
+                            }
+                            return value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            
+                            if (label.includes('Precio')) {
+                                return label + ': $' + context.raw.toFixed(2);
+                            } else if (label.includes('Volumen')) {
+                                if (context.raw >= 1000000) {
+                                    return label + ': ' + (context.raw / 1000000).toFixed(2) + 'M';
+                                } else if (context.raw >= 1000) {
+                                    return label + ': ' + (context.raw / 1000).toFixed(2) + 'K';
+                                }
+                                return label + ': ' + context.raw;
+                            }
+                            
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

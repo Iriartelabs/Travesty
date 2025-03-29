@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración - Travesty Analyzer{% endblock %}
+
+{% block header %}Configuración{% endblock %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-body p-0">
+        <div class="row g-0">
+            <!-- Árbol de navegación izquierdo -->
+            <div class="col-md-3 border-end">
+                <div class="settings-tree p-2">
+                    <ul class="list-unstyled settings-tree-root">
+                        <li class="settings-tree-item {% if section == 'general' %}active{% endif %}">
+                            <a href="{{ url_for('config.index', section='general') }}">
+                                <i class="fas fa-cog me-2"></i> General
+                            </a>
+                        </li>
+                        
+                        <li class="settings-tree-item {% if section == 'appearance' %}active{% endif %}">
+                            <a href="{{ url_for('config.index', section='appearance') }}">
+                                <i class="fas fa-palette me-2"></i> Apariencia
+                            </a>
+                        </li>
+                        
+                        <li class="settings-tree-item {% if section == 'paths' %}active{% endif %}">
+                            <a href="{{ url_for('config.index', section='paths') }}">
+                                <i class="fas fa-folder me-2"></i> Rutas
+                            </a>
+                        </li>
+                        
+                        <li class="settings-tree-item {% if section == 'data' %}active{% endif %}">
+                            <a href="{{ url_for('config.index', section='data') }}">
+                                <i class="fas fa-database me-2"></i> Datos
+                            </a>
+                        </li>
+                        
+                        <li class="settings-tree-item settings-tree-parent {% if section.startswith('providers') %}active expanded{% endif %}">
+                            <a href="#providers-submenu" data-bs-toggle="collapse" aria-expanded="{{ 'true' if section.startswith('providers') else 'false' }}">
+                                <i class="fas fa-plug me-2"></i> Providers
+                                <i class="fas fa-chevron-right float-end settings-tree-arrow"></i>
+                            </a>
+                            <ul class="collapse list-unstyled ps-4 {% if section.startswith('providers') %}show{% endif %}" id="providers-submenu">
+                                <li class="settings-tree-item {% if section == 'providers' %}active{% endif %}">
+                                    <a href="{{ url_for('config.index', section='providers') }}">
+                                        <i class="fas fa-list me-2"></i> General
+                                    </a>
+                                </li>
+                                
+                                {% for provider_name in providers|default([]) %}
+                                <li class="settings-tree-item {% if section == 'providers.' + provider_name %}active{% endif %}">
+                                    <a href="{{ url_for('config.index', section='providers.' + provider_name) }}">
+                                        <i class="fas fa-cog me-2"></i> {{ provider_name|title }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                        
+                        <li class="settings-tree-item {% if section == 'advanced' %}active{% endif %}">
+                            <a href="{{ url_for('config.index', section='advanced') }}">
+                                <i class="fas fa-sliders-h me-2"></i> Avanzado
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Panel de opciones derecho -->
+            <div class="col-md-9">
+                <div class="settings-content p-4">
+                    {% if section == 'general' %}
+                        {% include 'config/general.html' %}
+                    {% elif section == 'appearance' %}
+                        {% include 'config/appearance.html' %}
+                    {% elif section == 'paths' %}
+                        {% include 'config/paths.html' %}
+                    {% elif section == 'data' %}
+                        {% include 'config/data.html' %}
+                    {% elif section == 'providers' %}
+                        {% include 'config/providers.html' %}
+                    {% elif section.startswith('providers.') %}
+                        {% set provider_name = section.split('.')|last %}
+                        {% include 'config/provider_specific.html' %}
+                    {% elif section == 'advanced' %}
+                        {% include 'config/advanced.html' %}
+                    {% else %}
+                        {% include 'config/general.html' %}
+                    {% endif %}
+                    
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="saveConfig">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<style>
+    /* Estilos para el árbol de configuración */
+    .settings-tree {
+        height: 100%;
+        min-height: 500px;
+        background-color: #f8f9fa;
+    }
+    
+    .settings-tree-item {
+        padding: 8px 5px;
+        border-radius: 4px;
+        margin-bottom: 2px;
+    }
+    
+    .settings-tree-item a {
+        color: #444;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .settings-tree-item:hover {
+        background-color: #e9ecef;
+    }
+    
+    .settings-tree-item.active {
+        background-color: #4e73df;
+    }
+    
+    .settings-tree-item.active a {
+        color: white;
+    }
+    
+    .settings-tree-arrow {
+        transition: transform 0.3s;
+    }
+    
+    .settings-tree-parent.expanded .settings-tree-arrow {
+        transform: rotate(90deg);
+    }
+    
+    /* Estilos para el panel de configuración */
+    .config-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .config-table th, .config-table td {
+        padding: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .config-table th {
+        background-color: #f8f9fa;
+        font-weight: 500;
+    }
+    
+    .config-table tr:nth-child(even) {
+        background-color: #f8f9fc;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestionar expansión/colapso de submenús
+    document.querySelectorAll('.settings-tree-parent > a').forEach(item => {
+        item.addEventListener('click', event => {
+            const parent = item.parentElement;
+            parent.classList.toggle('expanded');
+        });
+    });
+    
+    // Formulario de configuración
+    const saveBtn = document.getElementById('saveConfig');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            // Enviar formulario si existe
+            const form = document.querySelector('.settings-content form');
+            if (form) {
+                form.submit();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

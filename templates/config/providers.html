@@ -1,0 +1,57 @@
+<h4 class="mb-4">Providers de Trading</h4>
+
+<p>Los providers son integraciones con APIs de brokers y servicios de trading.</p>
+
+<div class="table-responsive">
+    <table class="config-table">
+        <thead>
+            <tr>
+                <th style="width: 30%">Provider</th>
+                <th style="width: 20%">Estado</th>
+                <th style="width: 30%">Descripción</th>
+                <th style="width: 20%">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for name, provider in providers.items() %}
+            <tr>
+                <td>
+                    <strong>{{ name|title }}</strong>
+                </td>
+                <td>
+                    {% if name == active_provider %}
+                    <span class="badge bg-success">Activo</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td>{{ provider.description|default('') }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="{{ url_for('config.index', section='providers.' + name) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-cog"></i>
+                        </a>
+                        
+                        {% if name != active_provider %}
+                        <form method="post" action="{{ url_for('config.set_active_provider') }}" class="d-inline">
+                            <input type="hidden" name="provider" value="{{ name }}">
+                            <button type="submit" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            
+            {% if not providers %}
+            <tr>
+                <td colspan="4" class="text-center py-3">
+                    No hay providers instalados. Instala addons de integración con APIs de trading.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>

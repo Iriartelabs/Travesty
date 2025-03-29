@@ -1,0 +1,65 @@
+<h4 class="mb-4">Configuración de {{ provider_name|title }}</h4>
+
+<form method="post" action="{{ url_for('config.save_provider_config') }}">
+    <input type="hidden" name="provider" value="{{ provider_name }}">
+    
+    {% if provider_name == 'alpaca' %}
+    <div class="mb-3">
+        <label for="api_key" class="form-label">API Key</label>
+        <input type="text" class="form-control" id="api_key" name="api_key" 
+               value="{{ provider_config.api_key|default('') }}" required>
+    </div>
+    
+    <div class="mb-3">
+        <label for="api_secret" class="form-label">API Secret</label>
+        <input type="password" class="form-control" id="api_secret" name="api_secret" 
+               value="{{ provider_config.api_secret|default('') }}" required>
+        <div class="form-text">Tu clave API secreta nunca se comparte con terceros.</div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="base_url" class="form-label">Entorno</label>
+        <select class="form-select" id="base_url" name="base_url">
+            <option value="https://paper-api.alpaca.markets" 
+                    {% if provider_config.base_url == 'https://paper-api.alpaca.markets' %}selected{% endif %}>
+                Paper Trading (Simulación)
+            </option>
+            <option value="https://api.alpaca.markets"
+                    {% if provider_config.base_url == 'https://api.alpaca.markets' %}selected{% endif %}>
+                Live Trading (Operaciones Reales)
+            </option>
+        </select>
+    </div>
+    
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="enable_streaming" name="enable_streaming" 
+                       {% if provider_config.enable_streaming|default(true) %}checked{% endif %}>
+                <label class="form-check-label" for="enable_streaming">Streaming de datos</label>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="enable_logging" name="enable_logging" 
+                       {% if provider_config.enable_logging|default(false) %}checked{% endif %}>
+                <label class="form-check-label" for="enable_logging">Registro detallado</label>
+            </div>
+        </div>
+    </div>
+    
+    <hr>
+    
+    <h5 class="mt-4 mb-3">Conexión</h5>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="testConnection">
+        <i class="fas fa-plug me-1"></i> Probar conexión
+    </button>
+    
+    <div id="connectionStatus" class="mt-3" style="display: none;"></div>
+    
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> Configuración específica para {{ provider_name|title }} no disponible.
+    </div>
+    {% endif %}
+</form>

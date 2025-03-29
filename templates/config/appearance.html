@@ -1,0 +1,94 @@
+<h4 class="mb-4">Configuración de Apariencia</h4>
+
+<form method="post" action="{{ url_for('config.save_appearance_config') }}">
+    <div class="mb-3">
+        <label for="theme" class="form-label">Tema</label>
+        <select class="form-select" id="theme" name="theme">
+            <option value="light" {% if appearance_config.theme == 'light' %}selected{% endif %}>Claro</option>
+            <option value="dark" {% if appearance_config.theme == 'dark' %}selected{% endif %}>Oscuro</option>
+            <option value="auto" {% if appearance_config.theme == 'auto' %}selected{% endif %}>Automático (según sistema)</option>
+        </select>
+    </div>
+    
+    <div class="mb-3">
+        <label for="accent_color" class="form-label">Color principal</label>
+        <div class="row g-3">
+            <div class="col-auto">
+                <div class="color-preview" id="colorPreview" style="width: 40px; height: 40px; border-radius: 4px; border: 1px solid #ddd;"></div>
+            </div>
+            <div class="col">
+                <select class="form-select" id="accent_color" name="accent_color">
+                    <option value="default" {% if appearance_config.accent_color == 'default' %}selected{% endif %}>Predeterminado (Azul)</option>
+                    <option value="green" {% if appearance_config.accent_color == 'green' %}selected{% endif %}>Verde</option>
+                    <option value="red" {% if appearance_config.accent_color == 'red' %}selected{% endif %}>Rojo</option>
+                    <option value="purple" {% if appearance_config.accent_color == 'purple' %}selected{% endif %}>Púrpura</option>
+                    <option value="orange" {% if appearance_config.accent_color == 'orange' %}selected{% endif %}>Naranja</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="font_size" class="form-label">Tamaño de fuente</label>
+        <select class="form-select" id="font_size" name="font_size">
+            <option value="small" {% if appearance_config.font_size == 'small' %}selected{% endif %}>Pequeño</option>
+            <option value="medium" {% if appearance_config.font_size == 'medium' %}selected{% endif %}>Medio</option>
+            <option value="large" {% if appearance_config.font_size == 'large' %}selected{% endif %}>Grande</option>
+        </select>
+    </div>
+    
+    <div class="mb-3">
+        <label for="chart_style" class="form-label">Estilo de gráficos</label>
+        <select class="form-select" id="chart_style" name="chart_style">
+            <option value="default" {% if appearance_config.chart_style == 'default' %}selected{% endif %}>Predeterminado</option>
+            <option value="trading" {% if appearance_config.chart_style == 'trading' %}selected{% endif %}>Trading profesional</option>
+            <option value="minimal" {% if appearance_config.chart_style == 'minimal' %}selected{% endif %}>Minimalista</option>
+            <option value="colorful" {% if appearance_config.chart_style == 'colorful' %}selected{% endif %}>Colorido</option>
+        </select>
+    </div>
+    
+    <div class="mb-3 form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="show_sidebar_labels" name="show_sidebar_labels"
+               {% if appearance_config.show_sidebar_labels|default(true) %}checked{% endif %}>
+        <label class="form-check-label" for="show_sidebar_labels">Mostrar etiquetas en barra lateral</label>
+    </div>
+    
+    <div class="mb-3 form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="show_animations" name="show_animations"
+               {% if appearance_config.show_animations|default(true) %}checked{% endif %}>
+        <label class="form-check-label" for="show_animations">Mostrar animaciones</label>
+    </div>
+    
+    <div class="mb-3 form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="compact_tables" name="compact_tables"
+               {% if appearance_config.compact_tables|default(false) %}checked{% endif %}>
+        <label class="form-check-label" for="compact_tables">Tablas compactas</label>
+        <div class="form-text">Reduce el espaciado en tablas para mostrar más datos.</div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colorSelect = document.getElementById('accent_color');
+    const colorPreview = document.getElementById('colorPreview');
+    
+    // Función para actualizar la vista previa de color
+    function updateColorPreview() {
+        const colorMap = {
+            'default': '#4e73df',  // Azul predeterminado
+            'green': '#1cc88a',
+            'red': '#e74a3b',
+            'purple': '#8b5cf6',
+            'orange': '#fd7e14'
+        };
+        
+        colorPreview.style.backgroundColor = colorMap[colorSelect.value] || colorMap['default'];
+    }
+    
+    // Inicializar la vista previa
+    updateColorPreview();
+    
+    // Actualizar al cambiar la selección
+    colorSelect.addEventListener('change', updateColorPreview);
+});
+</script>
