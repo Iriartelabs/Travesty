@@ -995,7 +995,7 @@ class AdvancedTradingAlertSystem:
 # Instancia global del sistema de alertas avanzado
 alert_system = AdvancedTradingAlertSystem()
 
-@trading_alerts_bp.route('/trading-alerts')
+@trading_alerts_bp.route('/trading_alerts')
 def trading_alerts():
     """
     Vista principal para gestionar alertas de trading
@@ -1038,7 +1038,7 @@ def trading_alerts():
             unique_symbols.add(order['symb'])
     
     return custom_render_template(
-        'trading_alert_addon',  # ID del addon
+        'trading_alerts',  # ID del addon
         'trading_alerts.html',
         triggered_alerts=all_triggered_alerts,
         active_alerts=active_alerts,
@@ -1194,7 +1194,7 @@ def create_alert():
             unique_symbols.add(order['symb'])
     
     return custom_render_template(
-        'trading_alert_addon',  # ID del addon
+        'trading_alerts',  # ID del addon
         'create_alert.html',
         symbols=sorted(list(unique_symbols)),
         processed_data=processed_data,
@@ -1256,7 +1256,7 @@ def backtest():
             flash(f'Error al ejecutar backtest: {str(e)}', 'error')
     
     return custom_render_template(
-        'trading_alert_addon',  # ID del addon
+        'trading_alerts',  # ID del addon
         'backtest.html',
         symbols=sorted(list(unique_symbols)),
         processed_data=processed_data,
@@ -1304,7 +1304,7 @@ def position_calculator():
                 flash(f'Error al calcular tamaño de posición: {str(e)}', 'error')
     
     return custom_render_template(
-        'trading_alert_addon',  # ID del addon
+        'trading_alerts',  # ID del addon
         'position_calculator.html',
         symbols=sorted(list(unique_symbols)),
         processed_data=processed_data,
@@ -1347,7 +1347,7 @@ def settings():
         return redirect(url_for('trading_alerts.settings'))
     
     return custom_render_template(
-        'trading_alert_addon',  # ID del addon
+        'trading_alerts',  # ID del addon
         'alert_settings.html',
         notification_settings=alert_system.notification_settings,
         risk_settings=alert_system.risk_settings
@@ -1358,7 +1358,7 @@ def register_addon():
     AddonRegistry.register('trading_alerts', {
         'name': 'Trading Alerts Pro',
         'description': 'Sistema avanzado de alertas de trading con indicadores técnicos, backtesting y notificaciones',
-        'route': '/trading-alerts',
+        'route': '/trading_alerts',
         'view_func': trading_alerts,
         'template': 'trading_alerts.html',
         'icon': 'bell',

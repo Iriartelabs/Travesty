@@ -18,6 +18,9 @@ class Config:
     ADDONS_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'addons')
     ADDONS_DIR = ADDONS_FOLDER  # Para compatibilidad
     ENABLE_ADDONS = True
+    
+    
+    CACHE_ENABLED =  True
 
 class DevelopmentConfig(Config):
     """Configuración para entorno de desarrollo"""

@@ -96,7 +96,8 @@ def custom_render_template(addon_id, template_name, **context):
     
     # Construir la ruta a la plantilla
     template_path = f"addons/{addon_id}/ui/{template_name}"
-    
+    #linea de depuracion
+    print(f"DEBUG - Intentando cargar: {template_path}")
     return render_template(template_path, **context)
 
 # Función para compatibilidad con código existente

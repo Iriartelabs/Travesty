@@ -17,6 +17,9 @@ def create_app(config_name='development'):
     # Crear aplicación Flask
     app = Flask(__name__)
     
+    # Agregar la raíz de la aplicación al searchpath para que se puedan cargar plantillas de addons
+    app.jinja_loader.searchpath.append(app.root_path)
+    
     # Cargar configuración
     app.config.from_object(config)
     
